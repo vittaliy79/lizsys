@@ -14,6 +14,12 @@ export default function ContractsPage() {
         endDate: '',
     });
 
+    const [editingContract, setEditingContract] = useState(null);
+    const isEditing = Boolean(editingContract);
+
+    const [sortBy, setSortBy] = useState('id');
+    const [sortAsc, setSortAsc] = useState(false);
+
     useEffect(() => {
         fetchContracts();
     }, []);
@@ -21,30 +27,72 @@ export default function ContractsPage() {
     async function fetchContracts() {
         try {
             const res = await axios.get('/api/contracts');
-            setContracts(res.data);
+            console.log('Contracts response:', res.data); // <-- добавлено
+            if (Array.isArray(res.data)) {
+                setContracts(res.data);
+            } else {
+                console.error('Ожидался массив контрактов, но получен:', res.data);
+                setContracts([]); // безопасное значение по умолчанию
+            }
         } catch (error) {
             console.error('Failed to fetch contracts', error);
+            setContracts([]);
         }
     }
 
     function filteredContracts() {
-        if (!search) return contracts;
-        return contracts.filter(
-            c =>
-                c.title.toLowerCase().includes(search.toLowerCase()) ||
-                c.number.toLowerCase().includes(search.toLowerCase())
-        );
+        if (!Array.isArray(contracts)) return [];
+        let result = [...contracts];
+
+        if (search) {
+            result = result.filter(
+                c =>
+                    c.title?.toLowerCase().includes(search.toLowerCase()) ||
+                    c.number?.toLowerCase().includes(search.toLowerCase())
+            );
+        }
+
+        result.sort((a, b) => {
+            if (a[sortBy] < b[sortBy]) return sortAsc ? -1 : 1;
+            if (a[sortBy] > b[sortBy]) return sortAsc ? 1 : -1;
+            return 0;
+        });
+
+        return result;
     }
 
     function handleChange(e) {
         setForm(prev => ({...prev, [e.target.name]: e.target.value}));
     }
 
-    async function addContract(e) {
+    function validateForm() {
+        if (!form.title.trim()) return 'Название обязательно';
+        if (!form.number.trim()) return 'Номер обязателен';
+        if (!form.amount || isNaN(form.amount)) return 'Сумма должна быть числом';
+        if (!form.startDate || !form.endDate) return 'Даты обязательны';
+        if (new Date(form.endDate) < new Date(form.startDate)) return 'Дата окончания не может быть раньше даты начала';
+        return null;
+    }
+
+    async function submitContract(e) {
         e.preventDefault();
+        const validationError = validateForm();
+        if (validationError) {
+            alert(`Ошибка: ${validationError}`);
+            return;
+        }
+
+        const confirmed = confirm(isEditing ? 'Сохранить изменения?' : 'Добавить контракт?');
+        if (!confirmed) return;
+
         try {
-            await axios.post('/api/contracts', form);
+            if (isEditing) {
+                await axios.put(`/api/contracts/${editingContract.id}`, form);
+            } else {
+                await axios.post('/api/contracts', form);
+            }
             setModalOpen(false);
+            setEditingContract(null);
             setForm({
                 title: '',
                 number: '',
@@ -54,8 +102,40 @@ export default function ContractsPage() {
             });
             fetchContracts();
         } catch (error) {
-            console.error('Failed to add contract', error);
-            alert('Ошибка при добавлении контракта');
+            console.error('Failed to save contract', error);
+            alert('Ошибка при сохранении контракта');
+        }
+    }
+
+    async function handleDeleteContract(id) {
+        if (!confirm('Удалить контракт?')) return;
+        try {
+            await axios.delete(`/api/contracts/${id}`);
+            fetchContracts();
+        } catch (error) {
+            console.error('Failed to delete contract', error);
+            alert('Ошибка при удалении контракта');
+        }
+    }
+
+    function openEditModal(contract) {
+        setEditingContract(contract);
+        setForm({
+            title: contract.title,
+            number: contract.number,
+            amount: contract.amount,
+            startDate: contract.startDate,
+            endDate: contract.endDate,
+        });
+        setModalOpen(true);
+    }
+
+    function handleSort(column) {
+        if (sortBy === column) {
+            setSortAsc(!sortAsc);
+        } else {
+            setSortBy(column);
+            setSortAsc(true);
         }
     }
 
@@ -79,12 +159,12 @@ export default function ContractsPage() {
             <table className="w-full border-collapse border border-gray-300">
                 <thead>
                 <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2">ID</th>
-                    <th className="border border-gray-300 p-2">Название</th>
-                    <th className="border border-gray-300 p-2">Номер</th>
-                    <th className="border border-gray-300 p-2">Сумма</th>
-                    <th className="border border-gray-300 p-2">Дата начала</th>
-                    <th className="border border-gray-300 p-2">Дата окончания</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('id')}>ID</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('title')}>Название</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('number')}>Номер</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('amount')}>Сумма</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('startDate')}>Дата начала</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('endDate')}>Дата окончания</th>
                     <th className="border border-gray-300 p-2">Действия</th>
                 </tr>
                 </thead>
@@ -98,8 +178,18 @@ export default function ContractsPage() {
                         <td className="border border-gray-300 p-2">{contract.startDate}</td>
                         <td className="border border-gray-300 p-2">{contract.endDate}</td>
                         <td className="border border-gray-300 p-2 text-right space-x-2">
-                            <button className="text-blue-600 hover:underline text-sm">✏️</button>
-                            <button className="text-red-600 hover:underline text-sm">🗑️</button>
+                            <button
+                                onClick={() => openEditModal(contract)}
+                                className="text-blue-600 hover:underline text-sm"
+                            >
+                                ✏️
+                            </button>
+                            <button
+                                onClick={() => handleDeleteContract(contract.id)}
+                                className="text-red-600 hover:underline text-sm"
+                            >
+                                🗑️
+                            </button>
                         </td>
                     </tr>
                 ))}
@@ -109,8 +199,10 @@ export default function ContractsPage() {
             {modalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded shadow-lg w-96">
-                        <h2 className="text-xl mb-4">Добавить контракт</h2>
-                        <form onSubmit={addContract} className="space-y-3">
+                        <h2 className="text-xl mb-4">
+                            {isEditing ? 'Редактировать контракт' : 'Добавить контракт'}
+                        </h2>
+                        <form onSubmit={submitContract} className="space-y-3">
                             <div>
                                 <label className="block mb-1">Название</label>
                                 <input
@@ -169,7 +261,10 @@ export default function ContractsPage() {
                             <div className="flex justify-end space-x-2">
                                 <button
                                     type="button"
-                                    onClick={() => setModalOpen(false)}
+                                    onClick={() => {
+                                        setModalOpen(false);
+                                        setEditingContract(null);
+                                    }}
                                     className="px-4 py-2 border rounded"
                                 >
                                     Отмена
@@ -178,7 +273,7 @@ export default function ContractsPage() {
                                     type="submit"
                                     className="bg-blue-600 text-white px-4 py-2 rounded"
                                 >
-                                    Добавить
+                                    {isEditing ? 'Сохранить' : 'Добавить'}
                                 </button>
                             </div>
                         </form>
