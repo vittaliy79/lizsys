@@ -10,6 +10,21 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  etag: false,
+  lastModified: false,
+  cacheControl: false,
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+}));
+
 // Роутер для клиентов
 app.use('/api/clients', clientsRouter);
 app.use('/api/contracts', contractsRouter);

@@ -12,6 +12,10 @@ export default function ContractsPage() {
         amount: '',
         startDate: '',
         endDate: '',
+        type: '', // добавлено
+        downPayment: '',
+        interestRate: '',
+        termMonths: '',
     });
 
     const [editingContract, setEditingContract] = useState(null);
@@ -71,6 +75,9 @@ export default function ContractsPage() {
         if (!form.amount || isNaN(form.amount)) return 'Сумма должна быть числом';
         if (!form.startDate || !form.endDate) return 'Даты обязательны';
         if (new Date(form.endDate) < new Date(form.startDate)) return 'Дата окончания не может быть раньше даты начала';
+        if (!form.downPayment || isNaN(form.downPayment)) return 'Первоначальный взнос должен быть числом';
+        if (!form.interestRate || isNaN(form.interestRate)) return 'Процентная ставка должна быть числом';
+        if (!form.termMonths || isNaN(form.termMonths)) return 'Срок должен быть числом';
         return null;
     }
 
@@ -86,10 +93,19 @@ export default function ContractsPage() {
         if (!confirmed) return;
 
         try {
+            const principal = parseFloat(form.amount) - parseFloat(form.downPayment);
+            const monthlyRate = parseFloat(form.interestRate) / 100 / 12;
+            const months = parseInt(form.termMonths);
+            const monthlyPayment = monthlyRate === 0
+                ? principal / months
+                : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+
+            const formData = {...form, monthlyPayment: monthlyPayment.toFixed(2)};
+
             if (isEditing) {
-                await axios.put(`/api/contracts/${editingContract.id}`, form);
+                await axios.put(`/api/contracts/${editingContract.id}`, formData);
             } else {
-                await axios.post('/api/contracts', form);
+                await axios.post('/api/contracts', formData);
             }
             setModalOpen(false);
             setEditingContract(null);
@@ -99,6 +115,10 @@ export default function ContractsPage() {
                 amount: '',
                 startDate: '',
                 endDate: '',
+                type: '',
+                downPayment: '',
+                interestRate: '',
+                termMonths: '',
             });
             fetchContracts();
         } catch (error) {
@@ -118,6 +138,30 @@ export default function ContractsPage() {
         }
     }
 
+    async function handleExtendContract(id) {
+        if (!confirm('Продлить срок действия контракта?')) return;
+        try {
+            await axios.post(`/api/contracts/${id}/extend`);
+            fetchContracts();
+            alert('Контракт продлён.');
+        } catch (error) {
+            console.error('Ошибка при продлении контракта', error);
+            alert('Не удалось продлить контракт');
+        }
+    }
+
+    async function handleTransferOwnership(id) {
+        if (!confirm('Передать права собственности по контракту?')) return;
+        try {
+            await axios.post(`/api/contracts/${id}/transfer-ownership`);
+            fetchContracts();
+            alert('Права переданы.');
+        } catch (error) {
+            console.error('Ошибка при передаче прав собственности', error);
+            alert('Не удалось передать права');
+        }
+    }
+
     function openEditModal(contract) {
         setEditingContract(contract);
         setForm({
@@ -126,6 +170,11 @@ export default function ContractsPage() {
             amount: contract.amount,
             startDate: contract.startDate,
             endDate: contract.endDate,
+            type: contract.type || '',
+            downPayment: contract.downPayment || '',
+            interestRate: contract.interestRate || '',
+            termMonths: contract.termMonths || '',
+            monthlyPayment: contract.monthlyPayment || '',
         });
         setModalOpen(true);
     }
@@ -149,12 +198,20 @@ export default function ContractsPage() {
                     onChange={e => setSearch(e.target.value)}
                     className="border px-2 py-1 rounded w-64"
                 />
-                <button
-                    onClick={() => setModalOpen(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded"
-                >
-                    Добавить контракт
-                </button>
+                <div className="flex items-center">
+                    <button
+                        onClick={() => setModalOpen(true)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded"
+                    >
+                        Добавить контракт
+                    </button>
+                    <button
+                        onClick={() => alert('Функциональность загрузки документов пока не реализована')}
+                        className="bg-green-600 text-white px-4 py-2 rounded ml-2"
+                    >
+                        📎 Документы
+                    </button>
+                </div>
             </div>
             <table className="w-full border-collapse border border-gray-300">
                 <thead>
@@ -189,6 +246,24 @@ export default function ContractsPage() {
                                 className="text-red-600 hover:underline text-sm"
                             >
                                 🗑️
+                            </button>
+                            <button
+                                onClick={() => alert('Архивирование документов пока не реализовано')}
+                                className="text-gray-600 hover:underline text-sm"
+                            >
+                                🗄️
+                            </button>
+                            <button
+                                onClick={() => handleExtendContract(contract.id)}
+                                className="text-yellow-600 hover:underline text-sm"
+                            >
+                                ⏳
+                            </button>
+                            <button
+                                onClick={() => handleTransferOwnership(contract.id)}
+                                className="text-green-600 hover:underline text-sm"
+                            >
+                                ✅
                             </button>
                         </td>
                     </tr>
@@ -226,11 +301,58 @@ export default function ContractsPage() {
                                 />
                             </div>
                             <div>
+                                <label className="block mb-1">Тип договора</label>
+                                <select
+                                    name="type"
+                                    value={form.type}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full border px-2 py-1 rounded"
+                                >
+                                    <option value="">Выберите тип</option>
+                                    <option value="vehicle">Автомобиль</option>
+                                    <option value="equipment">Оборудование</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label className="block mb-1">Сумма</label>
                                 <input
                                     type="number"
                                     name="amount"
                                     value={form.amount}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full border px-2 py-1 rounded"
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-1">Первоначальный взнос</label>
+                                <input
+                                    type="number"
+                                    name="downPayment"
+                                    value={form.downPayment}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full border px-2 py-1 rounded"
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-1">Процентная ставка (%)</label>
+                                <input
+                                    type="number"
+                                    name="interestRate"
+                                    value={form.interestRate}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full border px-2 py-1 rounded"
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-1">Срок (в месяцах)</label>
+                                <input
+                                    type="number"
+                                    name="termMonths"
+                                    value={form.termMonths}
                                     onChange={handleChange}
                                     required
                                     className="w-full border px-2 py-1 rounded"
@@ -257,6 +379,16 @@ export default function ContractsPage() {
                                     required
                                     className="w-full border px-2 py-1 rounded"
                                 />
+                            </div>
+                            <div>
+                                <label className="block mb-1">Документы</label>
+                                <input
+                                    type="file"
+                                    multiple
+                                    className="w-full border px-2 py-1 rounded"
+                                    disabled
+                                />
+                                <p className="text-sm text-gray-500 mt-1">Загрузка документов будет доступна после сохранения контракта</p>
                             </div>
                             <div className="flex justify-end space-x-2">
                                 <button
