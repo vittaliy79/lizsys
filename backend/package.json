@@ -1,0 +1,23 @@
+{
+  "name": "liz-backend",
+  "version": "1.0.0",
+  "description": "Backend server for LIZSYS using Express and SQLite",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "keywords": [],
+  "author": "Vitaliy Bannikov",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
