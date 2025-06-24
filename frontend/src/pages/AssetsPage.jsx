@@ -1,51 +1,79 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function AssetsPage() {
   const [assets, setAssets] = useState([]);
   const [clients, setClients] = useState([]);
-  const [contracts, setContracts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [newAsset, setNewAsset] = useState({ type: '', model: '', vin: '', client: '', status: '', inspectionDate: '', maintenanceInfo: '', insuranceDocs: '', location: '' });
+  const [newAsset, setNewAsset] = useState({ name: '', type: '', inspectionDate: '', location: '', status: '', clientId: '' });
   const [activeTab, setActiveTab] = useState('main');
+  const [editingAssetId, setEditingAssetId] = useState(null);
+
+  const fetchAssets = () => {
+    axios.get('/api/assets')
+      .then(res => {
+        let data = Array.isArray(res.data) ? res.data : res.data.assets || [];
+        setAssets(data);
+      })
+      .catch(err => console.error('Ошибка запроса активов:', err));
+  };
 
   useEffect(() => {
-    fetch('/api/assets')
-      .then(res => res.json())
-      .then(data => setAssets(data))
-      .catch(err => console.error('Ошибка загрузки активов:', err));
+    fetchAssets();
 
-    fetch('/api/clients')
-      .then(res => res.json())
-      .then(data => setClients(data.map(c => c.name))) // предполагается, что у клиента есть поле `name`
+    axios.get('/api/clients')
+      .then(res => {
+        let data = Array.isArray(res.data) ? res.data : res.data.clients || [];
+        setClients(data);
+      })
       .catch(err => console.error('Ошибка загрузки клиентов:', err));
-
-    setContracts([]);
   }, []);
 
   const filteredAssets = assets.filter(asset =>
-    asset.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.vin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    asset.status.toLowerCase().includes(searchQuery.toLowerCase())
+    (asset.name && asset.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (asset.type && asset.type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (asset.status && asset.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (clients.find(c => c.id === asset.clientId)?.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const openNewAssetModal = () => {
-    setNewAsset({ type: '', model: '', vin: '', client: '', status: '', inspectionDate: '', maintenanceInfo: '', insuranceDocs: '', location: '' });
+    setNewAsset({ name: '', type: '', inspectionDate: '', location: '', status: '', clientId: '' });
+    setEditingAssetId(null);
     setShowModal(true);
     setActiveTab('main');
   };
 
   const openEditAssetModal = (asset) => {
-    setNewAsset({...asset});
+    setNewAsset({
+      name: asset.name || '',
+      type: asset.type || '',
+      inspectionDate: asset.inspectionDate || '',
+      location: asset.location || '',
+      status: asset.status || '',
+      clientId: asset.clientId || ''
+    });
+    setEditingAssetId(asset.id);
     setShowModal(true);
     setActiveTab('main');
   };
 
+  const resetForm = () => {
+    setNewAsset({ name: '', type: '', inspectionDate: '', location: '', status: '', clientId: '' });
+    setEditingAssetId(null);
+    setShowModal(false);
+  };
+
   const handleDeleteAsset = (id) => {
     if (window.confirm('Вы уверены, что хотите удалить этот актив?')) {
-      setAssets(prev => prev.filter(asset => asset.id !== id));
+      axios.delete(`/api/assets/${id}`)
+        .then(() => {
+          fetchAssets();
+        })
+        .catch(err => {
+          console.error('Ошибка при удалении актива:', err);
+          alert('Ошибка при удалении актива.');
+        });
     }
   };
 
@@ -59,30 +87,19 @@ export default function AssetsPage() {
 
   const handleModalSubmit = async (e) => {
     e.preventDefault();
-    if (!newAsset.type || !newAsset.model || !newAsset.vin || !newAsset.client || !newAsset.status) {
-      alert('Пожалуйста, заполните все поля.');
+    if (!newAsset.name || !newAsset.type || !newAsset.status || !newAsset.clientId) {
+      alert('Пожалуйста, заполните все обязательные поля.');
       return;
     }
 
     try {
-      const response = await fetch(
-        newAsset.id ? `/api/assets/${newAsset.id}` : '/api/assets',
-        {
-          method: newAsset.id ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newAsset)
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Ошибка при сохранении актива');
+      if (editingAssetId) {
+        await axios.put(`/api/assets/${editingAssetId}`, newAsset);
+      } else {
+        await axios.post('/api/assets', newAsset);
       }
-
-      // Перезагружаем активы после успешного сохранения
-      const updatedAssets = await fetch('/api/assets').then(res => res.json());
-      setAssets(updatedAssets);
-      setShowModal(false);
-      setNewAsset(null);
+      fetchAssets();
+      resetForm();
     } catch (err) {
       console.error(err);
       alert('Произошла ошибка при сохранении актива.');
@@ -125,19 +142,19 @@ export default function AssetsPage() {
         <tbody>
           {filteredAssets.length === 0 ? (
             <tr>
-              <td colSpan="10" className="text-center py-4">Активы не найдены.</td>
+              <td colSpan="7" className="text-center py-4">Активы не найдены.</td>
             </tr>
           ) : (
             filteredAssets.map(asset => (
               <tr key={asset.id} className="hover:bg-gray-50">
                 <td className="border border-gray-300 px-4 py-2">{asset.type}</td>
-                <td className="border border-gray-300 px-4 py-2">{asset.model}</td>
-                <td className="border border-gray-300 px-4 py-2">{asset.vin}</td>
-                <td className="border border-gray-300 px-4 py-2">{asset.client}</td>
+                <td className="border border-gray-300 px-4 py-2">{asset.name}</td>
+                <td className="border border-gray-300 px-4 py-2">{asset.vin || '—'}</td>
+                <td className="border border-gray-300 px-4 py-2">{clients.find(c => c.id === asset.clientId)?.name || '—'}</td>
                 <td className="border border-gray-300 px-4 py-2">{asset.status}</td>
                 <td className="border border-gray-300 px-4 py-2">{asset.inspectionDate || '—'}</td>
-                <td className="border border-gray-300 px-4 py-2">{asset.maintenanceInfo || '—'}</td>
-                <td className="border border-gray-300 px-4 py-2">{asset.insuranceDocs || '—'}</td>
+                <td className="border border-gray-300 px-4 py-2">{asset.maintenance || '—'}</td>
+                <td className="border border-gray-300 px-4 py-2">{asset.insurance || '—'}</td>
                 <td className="border border-gray-300 px-4 py-2">{asset.location || '—'}</td>
                 <td className="border border-gray-300 px-4 py-2 space-x-2">
                   <button
@@ -171,7 +188,7 @@ export default function AssetsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg w-96 p-6">
-            <h2 className="text-xl font-semibold mb-4">{newAsset.id ? 'Редактировать Актив' : 'Добавить Актив'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{editingAssetId ? 'Редактировать Актив' : 'Добавить Актив'}</h2>
             <div className="flex mb-4 border-b">
               <button
                 type="button"
@@ -192,6 +209,16 @@ export default function AssetsPage() {
               {activeTab === 'main' && (
                 <>
                   <div>
+                    <label className="block mb-1 font-medium">Название</label>
+                    <input
+                      type="text"
+                      value={newAsset.name}
+                      onChange={e => handleModalChange('name', e.target.value)}
+                      className="w-full border border-gray-300 rounded px-3 py-2"
+                      required
+                    />
+                  </div>
+                  <div>
                     <label className="block mb-1 font-medium">Тип</label>
                     <input
                       type="text"
@@ -202,36 +229,16 @@ export default function AssetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Модель</label>
-                    <input
-                      type="text"
-                      value={newAsset.model}
-                      onChange={e => handleModalChange('model', e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-1 font-medium">VIN</label>
-                    <input
-                      type="text"
-                      value={newAsset.vin}
-                      onChange={e => handleModalChange('vin', e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <div>
                     <label className="block mb-1 font-medium">Клиент</label>
                     <select
-                      value={newAsset.client}
-                      onChange={e => handleModalChange('client', e.target.value)}
+                      value={newAsset.clientId}
+                      onChange={e => handleModalChange('clientId', e.target.value)}
                       className="w-full border border-gray-300 rounded px-3 py-2"
                       required
                     >
                       <option value="" disabled>Выберите клиента</option>
                       {clients.map(client => (
-                        <option key={client} value={client}>{client}</option>
+                        <option key={client.id} value={client.id}>{client.name}</option>
                       ))}
                     </select>
                   </div>
@@ -255,28 +262,6 @@ export default function AssetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Инфо об обслуживании</label>
-                    <textarea
-                      value={newAsset.maintenanceInfo}
-                      onChange={e => handleModalChange('maintenanceInfo', e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                    />
-                  </div>
-                </>
-              )}
-
-              {activeTab === 'docs' && (
-                <>
-                  <div>
-                    <label className="block mb-1 font-medium">Страховые документы</label>
-                    <input
-                      type="text"
-                      value={newAsset.insuranceDocs}
-                      onChange={e => handleModalChange('insuranceDocs', e.target.value)}
-                      className="w-full border border-gray-300 rounded px-3 py-2"
-                    />
-                  </div>
-                  <div>
                     <label className="block mb-1 font-medium">Местоположение</label>
                     <input
                       type="text"
@@ -287,13 +272,16 @@ export default function AssetsPage() {
                   </div>
                 </>
               )}
+
+              {activeTab === 'docs' && (
+                <>
+                  {/* Здесь можно добавить поля для документов, если они есть в структуре */}
+                </>
+              )}
               <div className="flex justify-end space-x-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setNewAsset(null);
-                  }}
+                  onClick={resetForm}
                   className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
                 >
                   Отмена
