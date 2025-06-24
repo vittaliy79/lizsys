@@ -246,6 +246,72 @@ router.get('/:id/documents/:filename', (req, res) => {
   }
 });
 
+// POST route to apply a payment to a contract
+router.post('/:id/apply-payment', async (req, res) => {
+  const { id } = req.params;
+  const { amount } = req.body;
+
+  if (!amount || isNaN(Number(amount))) {
+    return res.status(400).json({ error: 'Неверная сумма платежа' });
+  }
+
+  try {
+    const contract = await db.get('SELECT * FROM contracts WHERE id = ?', id);
+    if (!contract) {
+      return res.status(404).json({ error: 'Контракт не найден' });
+    }
+
+    const remainingBalance = contract.remainingBalance ?? contract.amount;
+    const newRemainingBalance = remainingBalance - Number(amount);
+
+    const stmt = await db.prepare('UPDATE contracts SET remainingBalance = ? WHERE id = ?');
+    await stmt.run(newRemainingBalance, id);
+    await stmt.finalize();
+
+    res.json({ message: 'Платёж применён', newRemainingBalance });
+  } catch (error) {
+    console.error('Ошибка при применении платежа к контракту', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Расчёт просрочки и штрафа
+router.post('/:id/calculate-penalty', async (req, res) => {
+  const { id } = req.params;
+  if (typeof req.body !== 'object' || req.body === null) {
+    return res.status(400).json({ error: 'Некорректный формат тела запроса' });
+  }
+  const { dueDate, paymentDate, penaltyRate = 0.01 } = req.body ?? {};
+
+  if (!dueDate || !paymentDate || isNaN(Date.parse(dueDate)) || isNaN(Date.parse(paymentDate))) {
+    return res.status(400).json({ error: 'Некорректные даты' });
+  }
+
+  try {
+    const due = new Date(dueDate);
+    const paid = new Date(paymentDate);
+
+    if (paid <= due) {
+      return res.json({ lateDays: 0, penalty: 0 });
+    }
+
+    const lateDays = Math.ceil((paid - due) / (1000 * 60 * 60 * 24));
+    const contract = await db.get('SELECT remainingBalance FROM contracts WHERE id = ?', id);
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Контракт не найден' });
+    }
+
+    const balance = contract.remainingBalance ?? 0;
+    const penalty = Math.round(balance * penaltyRate * lateDays * 100) / 100;
+
+    res.json({ lateDays, penalty });
+  } catch (error) {
+    console.error('Ошибка при расчёте штрафа', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // Удаление документа
 router.delete('/:id/documents/:filename', async (req, res) => {
   const filePath = path.join('uploads/contracts', req.params.id, req.params.filename);
