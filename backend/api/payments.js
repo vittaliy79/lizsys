@@ -280,4 +280,53 @@ router.post('/:paymentId/notify', async (req, res) => {
   res.json({ message: `Notification triggered for payment ${paymentId}` });
 });
 
+// PUT route to update an existing payment
+router.put('/:paymentId', upload.single('receipt'), async (req, res) => {
+  const paymentId = parseInt(req.params.paymentId);
+  const { clientId, contractId, amount, date } = req.body;
+
+  if (!clientId || !contractId || !amount || !date) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const payment = await db.get('SELECT * FROM payments WHERE id = ?', [paymentId]);
+  if (!payment) {
+    return res.status(404).json({ error: 'Payment not found' });
+  }
+
+  const contract = await findContractById(contractId);
+  if (!contract) {
+    return res.status(404).json({ error: 'Contract not found' });
+  }
+
+  const paymentDate = new Date(date);
+  const dueDate = new Date(contract.dueDate || contract.startDate);
+  const lateFee = calculateLateFee(dueDate, paymentDate);
+
+  let newPath = payment.receiptPath;
+  let receiptType = payment.receiptType;
+
+  if (req.file) {
+    const paymentDir = path.join(__dirname, 'uploads', 'payments', String(paymentId));
+    fs.mkdirSync(paymentDir, { recursive: true });
+
+    newPath = path.join(paymentDir, req.file.filename);
+    fs.renameSync(req.file.path, newPath);
+
+    receiptType = req.file.mimetype.split('/')[1];
+
+    // Remove old file if present
+    if (payment.receiptPath && fs.existsSync(payment.receiptPath)) {
+      fs.unlinkSync(payment.receiptPath);
+    }
+  }
+
+  await db.run(
+    'UPDATE payments SET clientId = ?, contractId = ?, amount = ?, date = ?, lateFee = ?, receiptPath = ?, receiptType = ? WHERE id = ?',
+    [clientId, contractId, amount, date, lateFee, newPath, receiptType, paymentId]
+  );
+
+  res.json({ message: 'Payment updated' });
+});
+
 export default router;

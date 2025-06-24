@@ -13,6 +13,7 @@ export default function PaymentsPage() {
     receipt: null,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadPayments();
@@ -64,6 +65,24 @@ export default function PaymentsPage() {
 
   const handleAddPayment = async (e) => {
     e.preventDefault();
+    if (newPayment.id) {
+      await axios.put(`/api/payments/${newPayment.id}`, {
+        clientId: newPayment.clientId,
+        contractId: newPayment.contractId,
+        amount: parseFloat(newPayment.amount),
+        date: newPayment.date,
+      });
+      setNewPayment({
+        clientId: '',
+        contractId: '',
+        amount: '',
+        date: '',
+        receipt: null,
+      });
+      setIsModalOpen(false);
+      loadPayments();
+      return;
+    }
     try {
       // Pre-check notify modal
       await axios.post(`/api/payments/${newPayment.contractId}/pre-check`, {
@@ -110,11 +129,20 @@ export default function PaymentsPage() {
   };
 
   const handleEditPayment = (payment) => {
-    console.log('Редактировать платёж:', payment);
-    // TODO: Реализовать модальное окно редактирования
+    console.log('Edit payment', payment);
+    setNewPayment({
+      id: payment.id,
+      clientId: payment.clientId,
+      contractId: payment.contractId,
+      amount: payment.amount,
+      date: payment.date,
+      receipt: null,
+    });
+    setIsModalOpen(true);
   };
 
   const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm('Вы уверены, что хотите удалить этот платёж?')) return;
     try {
       await axios.delete(`/api/payments/${paymentId}`);
       loadPayments();
@@ -128,13 +156,24 @@ export default function PaymentsPage() {
         <h2 className="text-2xl font-semibold mb-4">Платежи</h2>
         <div className="flex justify-between items-center mb-4">
           <input
-              type="text"
-              placeholder="🔍 Поиск..."
-              className="border px-3 py-2 rounded w-1/3"
+            type="text"
+            placeholder="🔍 Поиск по имени клиента или номеру контракта..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="border px-3 py-2 rounded w-1/3"
           />
           <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setNewPayment({
+                  clientId: '',
+                  contractId: '',
+                  amount: '',
+                  date: '',
+                  receipt: null,
+                });
+                setIsModalOpen(true);
+              }}
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
           >
             ➕ Добавить платёж
@@ -240,12 +279,18 @@ export default function PaymentsPage() {
             <th className="border px-4 py-2">Дата</th>
             <th className="border px-4 py-2">Сумма</th>
             <th className="border px-4 py-2">Квитанция</th>
-            <th className="border px-4 py-2">Архив</th>
+            {/* Removed Archive column header */}
             <th className="border px-4 py-2">Действия</th>
           </tr>
           </thead>
           <tbody>
-          {payments.map((payment) => (
+          {payments
+            .filter(
+              (payment) =>
+                payment.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                payment.contractNumber.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .map((payment) => (
               <tr key={payment.id}>
                 <td className="border px-4 py-2">{payment.clientName}</td>
                 <td className="border px-4 py-2">{payment.contractNumber}</td>
@@ -265,11 +310,7 @@ export default function PaymentsPage() {
                       '—'
                   )}
                 </td>
-                <td className="border px-4 py-2">
-                  <button onClick={() => archiveReceipt(payment.id)} className="text-yellow-600 hover:underline">
-                    📦 Архивировать
-                  </button>
-                </td>
+                {/* Removed Archive button cell */}
                 <td className="border px-4 py-2 space-x-2">
                   <button className="text-blue-600 hover:underline" onClick={() => handleEditPayment(payment)}>
                     ✏️
@@ -282,7 +323,7 @@ export default function PaymentsPage() {
                   </button>
                 </td>
               </tr>
-          ))}
+            ))}
           </tbody>
         </table>
       </div>
