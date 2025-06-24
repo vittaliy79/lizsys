@@ -3,6 +3,7 @@ import cors from 'cors';
 import clientsRouter from './api/clients.js';
 import contractsRouter from './api/contracts.js';
 import paymentsRouter from './api/payments.js';
+import assetsRouter from './api/assets.js';
 
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 app.use('/api/clients', clientsRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/assets', assetsRouter);
 
 // Обработка отсутствующих маршрутов (404)
 app.use((req, res) => {
