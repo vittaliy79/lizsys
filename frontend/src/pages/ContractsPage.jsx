@@ -1,22 +1,26 @@
 // src/pages/ContractsPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 export default function ContractsPage() {
     const [contracts, setContracts] = useState([]);
     const [search, setSearch] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
+    const [clients, setClients] = useState([]);
     const [form, setForm] = useState({
         title: '',
         number: '',
         amount: '',
         startDate: '',
         endDate: '',
-        type: '', // добавлено
+        type: '',
         downPayment: '',
         interestRate: '',
         termMonths: '',
+        clientId: '',
     });
+    const [extendModal, setExtendModal] = useState({ open: false, contract: null });
+    const [transferModal, setTransferModal] = useState({ open: false, contract: null });
 
     const [editingContract, setEditingContract] = useState(null);
     const isEditing = Boolean(editingContract);
@@ -26,6 +30,16 @@ export default function ContractsPage() {
 
     useEffect(() => {
         fetchContracts();
+        fetchClients();
+    }, []);
+
+    const fetchClients = useCallback(async () => {
+        try {
+            const res = await axios.get('/api/clients');
+            setClients(res.data || []);
+        } catch (err) {
+            console.error('Ошибка при загрузке клиентов', err);
+        }
     }, []);
 
     async function fetchContracts() {
@@ -78,6 +92,7 @@ export default function ContractsPage() {
         if (!form.downPayment || isNaN(form.downPayment)) return 'Первоначальный взнос должен быть числом';
         if (!form.interestRate || isNaN(form.interestRate)) return 'Процентная ставка должна быть числом';
         if (!form.termMonths || isNaN(form.termMonths)) return 'Срок должен быть числом';
+        if (!form.clientId) return 'Выберите клиента';
         return null;
     }
 
@@ -89,9 +104,6 @@ export default function ContractsPage() {
             return;
         }
 
-        const confirmed = confirm(isEditing ? 'Сохранить изменения?' : 'Добавить контракт?');
-        if (!confirmed) return;
-
         try {
             const principal = parseFloat(form.amount) - parseFloat(form.downPayment);
             const monthlyRate = parseFloat(form.interestRate) / 100 / 12;
@@ -100,7 +112,7 @@ export default function ContractsPage() {
                 ? principal / months
                 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
 
-            const formData = {...form, monthlyPayment: monthlyPayment.toFixed(2)};
+            const formData = { ...form, monthlyPayment: monthlyPayment.toFixed(2) };
 
             if (isEditing) {
                 await axios.put(`/api/contracts/${editingContract.id}`, formData);
@@ -119,6 +131,7 @@ export default function ContractsPage() {
                 downPayment: '',
                 interestRate: '',
                 termMonths: '',
+                clientId: '',
             });
             fetchContracts();
         } catch (error) {
@@ -138,22 +151,18 @@ export default function ContractsPage() {
         }
     }
 
-    async function handleExtendContract(id) {
-        if (!confirm('Продлить срок действия контракта?')) return;
-        try {
-            await axios.post(`/api/contracts/${id}/extend`);
-            fetchContracts();
-            alert('Контракт продлён.');
-        } catch (error) {
-            console.error('Ошибка при продлении контракта', error);
-            alert('Не удалось продлить контракт');
-        }
+
+    function openExtendForm(contract) {
+        setExtendModal({ open: true, contract });
     }
 
-    async function handleTransferOwnership(id) {
-        if (!confirm('Передать права собственности по контракту?')) return;
+    function openTransferModal(contract) {
+        setTransferModal({ open: true, contract });
+    }
+
+    async function handleTransferOwnership(id, newClientId) {
         try {
-            await axios.post(`/api/contracts/${id}/transfer-ownership`);
+            await axios.post(`/api/contracts/${id}/transfer-ownership`, { newClientId });
             fetchContracts();
             alert('Права переданы.');
         } catch (error) {
@@ -175,6 +184,7 @@ export default function ContractsPage() {
             interestRate: contract.interestRate || '',
             termMonths: contract.termMonths || '',
             monthlyPayment: contract.monthlyPayment || '',
+            clientId: contract.clientId || '',
         });
         setModalOpen(true);
     }
@@ -201,13 +211,13 @@ export default function ContractsPage() {
                 <div className="flex items-center">
                     <button
                         onClick={() => setModalOpen(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded"
+                        className="bg-green-600 text-white px-4 py-2 rounded flex items-center"
                     >
-                        Добавить контракт
+                        <span className="mr-1">＋</span> Добавить контракт
                     </button>
                     <button
                         onClick={() => alert('Функциональность загрузки документов пока не реализована')}
-                        className="bg-green-600 text-white px-4 py-2 rounded ml-2"
+                        className="bg-blue-600 text-white px-4 py-2 rounded ml-2"
                     >
                         📎 Документы
                     </button>
@@ -254,13 +264,13 @@ export default function ContractsPage() {
                                 🗄️
                             </button>
                             <button
-                                onClick={() => handleExtendContract(contract.id)}
+                                onClick={() => openExtendForm(contract)}
                                 className="text-yellow-600 hover:underline text-sm"
                             >
                                 ⏳
                             </button>
                             <button
-                                onClick={() => handleTransferOwnership(contract.id)}
+                                onClick={() => openTransferModal(contract)}
                                 className="text-green-600 hover:underline text-sm"
                             >
                                 ✅
@@ -272,12 +282,89 @@ export default function ContractsPage() {
             </table>
 
             {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded shadow-lg w-96">
-                        <h2 className="text-xl mb-4">
-                            {isEditing ? 'Редактировать контракт' : 'Добавить контракт'}
-                        </h2>
-                        <form onSubmit={submitContract} className="space-y-3">
+                <ContractModalTabs
+                    isEditing={isEditing}
+                    setModalOpen={setModalOpen}
+                    setEditingContract={setEditingContract}
+                    form={form}
+                    setForm={setForm}
+                    clients={clients}
+                    handleChange={handleChange}
+                    submitContract={submitContract}
+                />
+            )}
+        {/* Модальное окно продления контракта */}
+        {extendModal.open && (
+            <ExtendModalTabs
+                extendModal={extendModal}
+                setExtendModal={setExtendModal}
+                fetchContracts={fetchContracts}
+            />
+        )}
+        {transferModal.open && (
+            <TransferModal
+                contract={transferModal.contract}
+                clients={clients}
+                onClose={() => setTransferModal({ open: false, contract: null })}
+                onTransfer={handleTransferOwnership}
+            />
+        )}
+    </div>
+    );
+}
+// --- ContractModalTabs компонент ---
+function ContractModalTabs({
+    isEditing,
+    setModalOpen,
+    setEditingContract,
+    form,
+    setForm,
+    clients,
+    handleChange,
+    submitContract,
+}) {
+    const [tab, setTab] = React.useState('main');
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded shadow-lg w-96">
+                <h2 className="text-xl mb-4">
+                    {isEditing ? 'Редактировать контракт' : 'Добавить контракт'}
+                </h2>
+                <nav className="flex mb-3 space-x-2">
+                    <button
+                        className={`px-3 py-1 rounded-t ${tab === 'main' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                        type="button"
+                        onClick={() => setTab('main')}
+                    >
+                        Основные
+                    </button>
+                    <button
+                        className={`px-3 py-1 rounded-t ${tab === 'terms' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                        type="button"
+                        onClick={() => setTab('terms')}
+                    >
+                        Условия
+                    </button>
+                </nav>
+                <form onSubmit={submitContract} className="space-y-3">
+                    {tab === 'main' ? (
+                        <fieldset className="border border-gray-300 rounded p-3 mb-2">
+                            <legend className="text-sm font-semibold px-2">Основные данные</legend>
+                            <div>
+                                <label className="block mb-1">Клиент</label>
+                                <select
+                                    name="clientId"
+                                    value={form.clientId}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full border px-2 py-1 rounded"
+                                >
+                                    <option value="">Выберите клиента</option>
+                                    {clients.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <div>
                                 <label className="block mb-1">Название</label>
                                 <input
@@ -325,6 +412,10 @@ export default function ContractsPage() {
                                     className="w-full border px-2 py-1 rounded"
                                 />
                             </div>
+                        </fieldset>
+                    ) : (
+                        <fieldset className="border border-gray-300 rounded p-3">
+                            <legend className="text-sm font-semibold px-2">Условия договора</legend>
                             <div>
                                 <label className="block mb-1">Первоначальный взнос</label>
                                 <input
@@ -390,28 +481,240 @@ export default function ContractsPage() {
                                 />
                                 <p className="text-sm text-gray-500 mt-1">Загрузка документов будет доступна после сохранения контракта</p>
                             </div>
-                            <div className="flex justify-end space-x-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setModalOpen(false);
-                                        setEditingContract(null);
-                                    }}
-                                    className="px-4 py-2 border rounded"
-                                >
-                                    Отмена
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="bg-blue-600 text-white px-4 py-2 rounded"
-                                >
-                                    {isEditing ? 'Сохранить' : 'Добавить'}
-                                </button>
-                            </div>
-                        </form>
+                        </fieldset>
+                    )}
+                    <div className="flex justify-between items-center space-x-2 mt-2">
+                        <div>
+                            <button
+                                type="submit"
+                                className="bg-blue-600 text-white px-4 py-2 rounded"
+                            >
+                                {isEditing ? 'Обновить' : 'Сохранить'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setModalOpen(false);
+                                    setEditingContract(null);
+                                }}
+                                className="ml-2 px-4 py-2 border rounded"
+                            >
+                                Отменить
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// --- ExtendModalTabs компонент ---
+function ExtendModalTabs({ extendModal, setExtendModal, fetchContracts }) {
+    const [tab, setTab] = React.useState('extend');
+    const [calculatedDate, setCalculatedDate] = React.useState('');
+    const [months, setMonths] = React.useState('12');
+    // Обнулять calculatedDate при открытии модалки
+    React.useEffect(() => {
+        if (extendModal.open) {
+            setCalculatedDate('');
+            setMonths('12');
+        }
+    }, [extendModal.open]);
+
+    // Обработчик изменения месяцев
+    const handleMonthsChange = (e) => {
+        const val = e.target.value;
+        setMonths(val);
+        const monthsNum = parseInt(val);
+        if (!isNaN(monthsNum) && monthsNum > 0 && extendModal.contract?.endDate) {
+            const newDate = new Date(extendModal.contract.endDate);
+            newDate.setMonth(newDate.getMonth() + monthsNum);
+            setCalculatedDate(newDate.toISOString().split('T')[0]);
+        } else {
+            setCalculatedDate('');
+        }
+    };
+
+    // Сабмит формы
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        const monthsNum = parseInt(months);
+        if (isNaN(monthsNum) || monthsNum <= 0) {
+            alert('Некорректное значение');
+            return;
+        }
+        const contract = extendModal.contract;
+        const newEndDate = new Date(contract.endDate);
+        newEndDate.setMonth(newEndDate.getMonth() + monthsNum);
+        const formattedDate = newEndDate.toISOString().split('T')[0];
+        axios
+            .post(`/api/contracts/${contract.id}/extend`, { newEndDate: formattedDate })
+            .then(() => {
+                fetchContracts();
+                setExtendModal({ open: false, contract: null });
+            })
+            .catch((err) => {
+                console.error('Ошибка при продлении контракта', err);
+                alert('Не удалось продлить контракт');
+            });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded shadow-lg w-96">
+                <h2 className="text-xl mb-4">Продление контракта</h2>
+                <nav className="flex mb-3 space-x-2">
+                    <button
+                        className={`px-3 py-1 rounded-t ${tab === 'extend' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                        type="button"
+                        onClick={() => setTab('extend')}
+                    >
+                        Продление
+                    </button>
+                    <button
+                        className={`px-3 py-1 rounded-t ${tab === 'confirm' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                        type="button"
+                        onClick={() => setTab('confirm')}
+                    >
+                        Подтверждение
+                    </button>
+                </nav>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    {tab === 'extend' ? (
+                        <>
+                            <div>
+                                <label className="block mb-1">На сколько месяцев продлить?</label>
+                                <input
+                                    type="number"
+                                    name="months"
+                                    value={months}
+                                    className="w-full border px-2 py-1 rounded"
+                                    required
+                                    onChange={handleMonthsChange}
+                                    min={1}
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-1">Новая дата окончания</label>
+                                <input
+                                    type="text"
+                                    value={calculatedDate}
+                                    readOnly
+                                    className="w-full border px-2 py-1 rounded bg-gray-100"
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div>
+                            <p className="mb-2">Проверьте информацию о продлении:</p>
+                            <div className="mb-2">
+                                <span className="font-semibold">Продлить на:</span> {months} мес.
+                            </div>
+                            <div>
+                                <span className="font-semibold">Новая дата окончания:</span> {calculatedDate || '-'}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end space-x-2">
+                        <button
+                            type="button"
+                            onClick={() => setExtendModal({ open: false, contract: null })}
+                            className="px-4 py-2 border rounded"
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-blue-600 text-white px-4 py-2 rounded"
+                            disabled={tab === 'extend'}
+                        >
+                            Продлить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+// --- TransferModal компонент ---
+function TransferModal({ contract, clients, onClose, onTransfer }) {
+    const [newClientId, setNewClientId] = React.useState('');
+    const [tab, setTab] = React.useState('select');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (newClientId === contract.clientId) {
+            alert('Выберите другого клиента');
+            return;
+        }
+        await onTransfer(contract.id, newClientId);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded shadow-lg w-96">
+                <h2 className="text-xl mb-4">Передача прав собственности</h2>
+                <nav className="flex mb-3 space-x-2">
+                    <button
+                        className={`px-3 py-1 rounded-t ${tab === 'select' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                        type="button"
+                        onClick={() => setTab('select')}
+                    >
+                        Выбор клиента
+                    </button>
+                    <button
+                        className={`px-3 py-1 rounded-t ${tab === 'confirm' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                        type="button"
+                        onClick={() => setTab('confirm')}
+                        disabled={!newClientId || newClientId === contract.clientId}
+                    >
+                        Подтверждение
+                    </button>
+                </nav>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    {tab === 'select' ? (
+                        <div>
+                            <label className="block mb-1">Новый клиент</label>
+                            <select
+                                className="w-full border px-2 py-1 rounded"
+                                value={newClientId}
+                                onChange={(e) => setNewClientId(e.target.value)}
+                                required
+                            >
+                                <option value="">Выберите клиента</option>
+                                {clients
+                                    .filter((c) => c.id !== contract.clientId)
+                                    .map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div>
+                            <p className="mb-2">Подтвердите передачу прав контракта ID {contract.id}</p>
+                            <p>
+                                Новый клиент: <strong>{clients.find(c => c.id === newClientId)?.name || ''}</strong>
+                            </p>
+                        </div>
+                    )}
+                    <div className="flex justify-end space-x-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 border rounded">
+                            Отмена
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-blue-600 text-white px-4 py-2 rounded"
+                            disabled={tab !== 'confirm' || !newClientId || newClientId === contract.clientId}
+                        >
+                            Передать
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }

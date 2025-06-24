@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { title, number, amount, startDate, endDate } = req.body;
+  const { title, number, amount, startDate, endDate, downPayment, interestRate, termMonths, monthlyPayment, type, clientId } = req.body;
   if (
       !title ||
       !number ||
@@ -30,11 +30,14 @@ router.post('/', async (req, res) => {
   ) {
     return res.status(400).json({ message: 'Неверные данные' });
   }
+  if (!clientId || isNaN(Number(clientId))) {
+    return res.status(400).json({ message: 'Неверный clientId' });
+  }
   try {
     const stmt = await db.prepare(
-        'INSERT INTO contracts (title, number, amount, startDate, endDate) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO contracts (title, number, amount, startDate, endDate, downPayment, interestRate, termMonths, monthlyPayment, type, clientId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    await stmt.run(title, number, amount, startDate, endDate);
+    await stmt.run(title, number, amount, startDate, endDate, downPayment, interestRate, termMonths, monthlyPayment, type, clientId);
     await stmt.finalize();
     res.status(201).json({ message: 'Контракт добавлен' });
   } catch (error) {
@@ -45,7 +48,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, number, amount, startDate, endDate } = req.body;
+  const { title, number, amount, startDate, endDate, downPayment, interestRate, termMonths, monthlyPayment, type, clientId } = req.body;
   if (
       !title ||
       !number ||
@@ -60,11 +63,14 @@ router.put('/:id', async (req, res) => {
   ) {
     return res.status(400).json({ message: 'Неверные данные' });
   }
+  if (!clientId || isNaN(Number(clientId))) {
+    return res.status(400).json({ message: 'Неверный clientId' });
+  }
   try {
     const stmt = await db.prepare(
-        'UPDATE contracts SET title = ?, number = ?, amount = ?, startDate = ?, endDate = ? WHERE id = ?'
+        'UPDATE contracts SET title = ?, number = ?, amount = ?, startDate = ?, endDate = ?, downPayment = ?, interestRate = ?, termMonths = ?, monthlyPayment = ?, type = ?, clientId = ? WHERE id = ?'
     );
-    const result = await stmt.run(title, number, amount, startDate, endDate, id);
+    const result = await stmt.run(title, number, amount, startDate, endDate, downPayment, interestRate, termMonths, monthlyPayment, type, clientId, id);
     await stmt.finalize();
 
     if (result.changes === 0) {
@@ -128,13 +134,34 @@ router.post('/:id/calculate', async (req, res) => {
   }
 });
 
-// Маршрут для продления или передачи права собственности
-router.post('/:id/complete', async (req, res) => {
+// Отдельный маршрут для продления контракта
+router.post('/:id/extend', async (req, res) => {
   const { id } = req.params;
-  const { action } = req.body;
+  const { newEndDate } = req.body;
 
-  if (!['extend', 'transfer'].includes(action)) {
-    return res.status(400).json({ message: 'Неверное действие (допустимо: extend или transfer)' });
+  if (!newEndDate || isNaN(Date.parse(newEndDate))) {
+    return res.status(400).json({ message: 'Некорректная дата' });
+  }
+
+  try {
+    const stmt = await db.prepare('UPDATE contracts SET endDate = ? WHERE id = ?');
+    await stmt.run(newEndDate, id);
+    await stmt.finalize();
+
+    res.json({ message: 'Срок контракта продлён', newEndDate });
+  } catch (error) {
+    console.error('Ошибка при продлении контракта', error);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// Отдельный маршрут для передачи права собственности
+router.post('/:id/transfer-ownership', async (req, res) => {
+  const { id } = req.params;
+  const { newClientId } = req.body;
+
+  if (!newClientId || isNaN(Number(newClientId))) {
+    return res.status(400).json({ message: 'Неверный clientId' });
   }
 
   try {
@@ -143,22 +170,17 @@ router.post('/:id/complete', async (req, res) => {
       return res.status(404).json({ message: 'Контракт не найден' });
     }
 
-    if (action === 'extend') {
-      const newEndDate = new Date(contract.endDate);
-      newEndDate.setMonth(newEndDate.getMonth() + 12);
-      const stmt = await db.prepare('UPDATE contracts SET endDate = ? WHERE id = ?');
-      await stmt.run(newEndDate.toISOString(), id);
-      await stmt.finalize();
-      return res.json({ message: 'Срок контракта продлён', newEndDate });
-    } else if (action === 'transfer') {
-      // Просто помечаем контракт как завершённый передачей
-      const stmt = await db.prepare('UPDATE contracts SET status = ? WHERE id = ?');
-      await stmt.run('transferred', id);
-      await stmt.finalize();
-      return res.json({ message: 'Право собственности передано' });
+    if (Number(newClientId) === contract.clientId) {
+      return res.status(400).json({ message: 'Нельзя передать контракт текущему владельцу' });
     }
+
+    const stmt = await db.prepare('UPDATE contracts SET clientId = ? WHERE id = ?');
+    await stmt.run(newClientId, id);
+    await stmt.finalize();
+
+    res.json({ message: 'Право собственности передано новому клиенту' });
   } catch (error) {
-    console.error('Failed to complete contract action', error);
+    console.error('Ошибка при передаче контракта', error);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });
