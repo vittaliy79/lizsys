@@ -16,7 +16,8 @@ function Layout({ children }) {
             <header className="bg-white shadow-md">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
                     <h1 className="text-xl font-bold text-blue-600">LIZSYS</h1>
-                    <nav className="space-x-4">
+                    {/* Desktop navigation */}
+                    <nav className="hidden md:flex space-x-4">
                         <Link to="/" className="text-gray-600 hover:text-blue-600">Главная</Link>
                         <Link to="/clients" className="text-gray-600 hover:text-blue-600">Клиенты</Link>
                         <Link to="/contracts" className="text-gray-600 hover:text-blue-600">Контракты</Link>
@@ -24,6 +25,20 @@ function Layout({ children }) {
                         <Link to="/assets" className="text-gray-600 hover:text-blue-600">Активы</Link>
                         <Link to="/reports" className="text-gray-600 hover:text-blue-600">Отчёты</Link>
                     </nav>
+                    {/* Mobile dropdown menu */}
+                    <div className="md:hidden">
+                        <details className="relative">
+                            <summary className="cursor-pointer text-gray-600 hover:text-blue-600">☰ Меню</summary>
+                            <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md z-50">
+                                <Link to="/" className="block px-4 py-2 hover:bg-gray-100">Главная</Link>
+                                <Link to="/clients" className="block px-4 py-2 hover:bg-gray-100">Клиенты</Link>
+                                <Link to="/contracts" className="block px-4 py-2 hover:bg-gray-100">Контракты</Link>
+                                <Link to="/payments" className="block px-4 py-2 hover:bg-gray-100">Платежи</Link>
+                                <Link to="/assets" className="block px-4 py-2 hover:bg-gray-100">Активы</Link>
+                                <Link to="/reports" className="block px-4 py-2 hover:bg-gray-100">Отчёты</Link>
+                            </div>
+                        </details>
+                    </div>
                 </div>
             </header>
             <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>

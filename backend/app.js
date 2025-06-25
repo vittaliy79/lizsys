@@ -5,6 +5,7 @@ import contractsRouter from './api/contracts.js';
 import paymentsRouter from './api/payments.js';
 import assetsRouter from './api/assets.js';
 import reportsRouter from './api/reports.js';
+import dashboardRouter from './api/dashboard.js';
 
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/contracts', contractsRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/assets', assetsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // Обработка отсутствующих маршрутов (404)
 app.use((req, res) => {
