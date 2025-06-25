@@ -1,6 +1,168 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+// --- AssetDocumentsModal: модальное окно для файлов актива ---
+function AssetDocumentsModal({ assetId, show, onClose }) {
+  const [documents, setDocuments] = useState([]);
+  const [maintenanceFile, setMaintenanceFile] = useState(null);
+  const [insuranceFile, setInsuranceFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Загрузка списка файлов
+  const fetchDocuments = async () => {
+    if (!assetId) return;
+    setLoading(true);
+    try {
+      const res = await axios.get(`/api/assets/${assetId}/files`);
+      setDocuments(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setDocuments([]);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (show && assetId) {
+      fetchDocuments();
+      setMaintenanceFile(null);
+      setInsuranceFile(null);
+    }
+    // eslint-disable-next-line
+  }, [show, assetId]);
+
+  // Загрузка файлов
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!assetId) return;
+    if (!maintenanceFile && !insuranceFile) return;
+    const form = new FormData();
+    if (maintenanceFile) form.append('maintenanceFile', maintenanceFile);
+    if (insuranceFile) form.append('insuranceFile', insuranceFile);
+    try {
+      await axios.post(`/api/assets/${assetId}/upload`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setMaintenanceFile(null);
+      setInsuranceFile(null);
+      fetchDocuments();
+    } catch (err) {
+      alert('Ошибка при загрузке файлов');
+    }
+  };
+
+  // Удаление документа
+  const handleDeleteDoc = async (docId) => {
+    if (!assetId || !docId) return;
+    if (!window.confirm('Удалить файл?')) return;
+    try {
+      await axios.delete(`/api/assets/${assetId}/files/${docId}`);
+      fetchDocuments();
+    } catch (err) {
+      alert('Ошибка при удалении файла');
+    }
+  };
+
+  return show ? (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white rounded-lg w-[720px] p-6">
+        <h2 className="text-xl font-semibold mb-4">Файлы клиента</h2>
+        <form onSubmit={handleUpload} className="space-y-2 mb-4">
+          <div>
+            <label className="block mb-1 font-medium">Документ обслуживания</label>
+            <input
+              type="file"
+              onChange={e => setMaintenanceFile(e.target.files[0])}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              accept=".pdf,.jpg,.png"
+            />
+          </div>
+          <div>
+            <label className="block mb-1 font-medium">Страховой документ</label>
+            <input
+              type="file"
+              onChange={e => setInsuranceFile(e.target.files[0])}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              accept=".pdf,.jpg,.png"
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+              disabled={loading}
+            >
+              Загрузить
+            </button>
+          </div>
+        </form>
+        {loading ? (
+          <div>Загрузка...</div>
+        ) : (
+          <>
+            {(!documents || documents.length === 0) ? (
+              <p>Нет прикреплённых файлов.</p>
+            ) : (
+              <table className="w-full border text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-2 py-1 text-left">Тип</th>
+                    <th className="border px-2 py-1 text-left">Файл</th>
+                    <th className="border px-2 py-1 text-left">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((doc) => {
+                    const docType = doc.filename.toLowerCase().includes('maintenance')
+                      ? 'Документ обслуживания'
+                      : doc.filename.toLowerCase().includes('insurance')
+                      ? 'Страховой документ'
+                      : 'Неизвестно';
+                    return (
+                      <tr key={doc.id}>
+                        <td className="border px-2 py-1">{docType}</td>
+                        <td className="border px-2 py-1 truncate">
+                          {doc.filename.length > 30 ? doc.filename.slice(0, 30) + '...' : doc.filename}
+                        </td>
+                        <td className="border px-2 py-1">
+                          <div className="flex gap-2">
+                            <a
+                              href={`/api/assets/${assetId}/files/${doc.filename}?t=${Date.now()}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              📂 Открыть
+                            </a>
+                            <button
+                              className="text-red-600 hover:underline"
+                              onClick={() => handleDeleteDoc(doc.id)}
+                              type="button"
+                            >
+                              🗑️ Удалить
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+          >
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+}
+
 export default function AssetsPage() {
   const [assets, setAssets] = useState(() => []);
   const [clients, setClients] = useState([]);
@@ -9,27 +171,9 @@ export default function AssetsPage() {
   const [newAsset, setNewAsset] = useState({ name: '', type: '', vin: '', maintenanceInfo: '', insuranceInfo: '', inspectionDate: '', location: '', status: '', clientId: '', maintenanceFile: null, insuranceFile: null });
   const [activeTab, setActiveTab] = useState('main');
   const [editingAssetId, setEditingAssetId] = useState(null);
-  // --- Files modal state
-  const [showFilesModal, setShowFilesModal] = useState(false);
-  const [selectedAssetFiles, setSelectedAssetFiles] = useState([]);
-  const [selectedAssetId, setSelectedAssetId] = useState(null);
-  // --- Файлы клиента для актива
-  const handleOpenFilesModal = async (asset) => {
-    setSelectedAssetId(asset.id);
-    try {
-      const res = await axios.get(`/api/assets/${asset.id}/files`);
-      if (Array.isArray(res.data)) {
-        setSelectedAssetFiles(res.data);
-      } else {
-        console.warn('Ожидался массив файлов, но получено:', res.data);
-        setSelectedAssetFiles([]);
-      }
-      setShowFilesModal(true);
-    } catch (err) {
-      console.error('Ошибка при загрузке файлов:', err);
-      alert('Не удалось загрузить файлы.');
-    }
-  };
+  // --- AssetDocumentsModal state
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [documentsAssetId, setDocumentsAssetId] = useState(null);
 
   const fetchAssets = async () => {
     try {
@@ -173,6 +317,31 @@ export default function AssetsPage() {
     }
   };
 
+  // --- Форма загрузки файлов для модального окна файлов
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedAssetId) return;
+    const fileForm = new FormData();
+    if (newAsset.maintenanceFile) {
+      fileForm.append('maintenanceFile', newAsset.maintenanceFile);
+    }
+    if (newAsset.insuranceFile) {
+      fileForm.append('insuranceFile', newAsset.insuranceFile);
+    }
+    try {
+      await axios.post(`/api/assets/${selectedAssetId}/upload`, fileForm, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      // обновить список файлов
+      const res = await axios.get(`/api/assets/${selectedAssetId}/files`);
+      setSelectedAssetFiles(res.data || []);
+      setNewAsset(prev => ({ ...prev, maintenanceFile: null, insuranceFile: null }));
+    } catch (err) {
+      console.error('Ошибка при загрузке файлов:', err);
+      alert('Не удалось загрузить файлы.');
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
@@ -228,7 +397,7 @@ export default function AssetsPage() {
                 <td className="border border-gray-300 px-4 py-2">{asset.status || '—'}</td>
                 <td className="border border-gray-300 px-4 py-2">
                   <button
-                    onClick={() => handleOpenFilesModal(asset)}
+                    onClick={() => { setDocumentsAssetId(asset.id); setShowDocumentsModal(true); }}
                     className="text-blue-600 hover:underline"
                   >
                     📂 Файлов клиента: {asset.fileCount || 0}
@@ -406,92 +575,11 @@ export default function AssetsPage() {
           </div>
         </div>
       )}
-      {showFilesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded-lg w-96 p-6">
-            <h2 className="text-xl font-semibold mb-4">Файлы клиента</h2>
-            {/* Форма загрузки документов */}
-            <form onSubmit={handleFileUpload} className="space-y-2 mb-4">
-              <div>
-                <label className="block mb-1 font-medium">Документ обслуживания</label>
-                <input
-                  type="file"
-                  onChange={e => setNewAsset(prev => ({ ...prev, maintenanceFile: e.target.files[0] }))}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  accept=".pdf,.jpg,.png"
-                />
-              </div>
-              <div>
-                <label className="block mb-1 font-medium">Страховой документ</label>
-                <input
-                  type="file"
-                  onChange={e => setNewAsset(prev => ({ ...prev, insuranceFile: e.target.files[0] }))}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  accept=".pdf,.jpg,.png"
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-                >
-                  Загрузить
-                </button>
-              </div>
-            </form>
-            {selectedAssetFiles.length === 0 ? (
-              <p>Нет прикреплённых файлов.</p>
-            ) : (
-              <ul className="list-disc pl-5 space-y-1">
-                {selectedAssetFiles.map((file, idx) => (
-                  <li key={idx}>
-                    <a
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      {file.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={() => setShowFilesModal(false)}
-                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AssetDocumentsModal
+        assetId={documentsAssetId}
+        show={showDocumentsModal}
+        onClose={() => setShowDocumentsModal(false)}
+      />
     </div>
   );
 }
-  // --- Форма загрузки файлов для модального окна файлов
-  const handleFileUpload = async (e) => {
-    e.preventDefault();
-    if (!selectedAssetId) return;
-    const fileForm = new FormData();
-    if (newAsset.maintenanceFile) {
-      fileForm.append('maintenanceFile', newAsset.maintenanceFile);
-    }
-    if (newAsset.insuranceFile) {
-      fileForm.append('insuranceFile', newAsset.insuranceFile);
-    }
-    try {
-      await axios.post(`/api/assets/${selectedAssetId}/upload`, fileForm, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      // обновить список файлов
-      const res = await axios.get(`/api/assets/${selectedAssetId}/files`);
-      setSelectedAssetFiles(res.data || []);
-      setNewAsset(prev => ({ ...prev, maintenanceFile: null, insuranceFile: null }));
-    } catch (err) {
-      console.error('Ошибка при загрузке файлов:', err);
-      alert('Не удалось загрузить файлы.');
-    }
-  };

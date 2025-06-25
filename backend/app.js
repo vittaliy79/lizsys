@@ -4,6 +4,7 @@ import clientsRouter from './api/clients.js';
 import contractsRouter from './api/contracts.js';
 import paymentsRouter from './api/payments.js';
 import assetsRouter from './api/assets.js';
+import reportsRouter from './api/reports.js';
 
 
 const app = express();
@@ -17,6 +18,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+console.log('🚀 Сервер запускается...');
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   etag: false,
@@ -32,6 +35,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/contracts', contractsRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/assets', assetsRouter);
+app.use('/api/reports', reportsRouter);
 
 // Обработка отсутствующих маршрутов (404)
 app.use((req, res) => {

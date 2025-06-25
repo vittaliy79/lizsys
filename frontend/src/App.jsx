@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import ContractsPage from './pages/ContractsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import AssetsPage from './pages/AssetsPage';
+import ReportsPage from './pages/ReportsPage';
 
 function Layout({ children }) {
     return (
@@ -21,6 +22,7 @@ function Layout({ children }) {
                         <Link to="/contracts" className="text-gray-600 hover:text-blue-600">Контракты</Link>
                         <Link to="/payments" className="text-gray-600 hover:text-blue-600">Платежи</Link>
                         <Link to="/assets" className="text-gray-600 hover:text-blue-600">Активы</Link>
+                        <Link to="/reports" className="text-gray-600 hover:text-blue-600">Отчёты</Link>
                     </nav>
                 </div>
             </header>
@@ -78,6 +80,14 @@ export default function App() {
                     element={
                         <Layout>
                             <AssetsPage />
+                        </Layout>
+                    }
+                />
+                <Route
+                    path="/reports"
+                    element={
+                        <Layout>
+                            <ReportsPage />
                         </Layout>
                     }
                 />

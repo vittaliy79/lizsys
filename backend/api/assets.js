@@ -199,7 +199,7 @@ router.get('/:assetId/documents', async (req, res) => {
 });
 
 // Удалить документ актива
-router.delete('/:assetId/documents/:id', async (req, res) => {
+router.delete('/:assetId/files/:id', async (req, res) => {
   const { id } = req.params;
 
   const doc = await db.get('SELECT * FROM asset_documents WHERE id = ?', [id]);
@@ -212,11 +212,16 @@ router.delete('/:assetId/documents/:id', async (req, res) => {
 });
 
 // Получить файл по пути
-router.get('/:assetId/documents/:filename', (req, res) => {
+router.get('/:assetId/files/:filename', (req, res) => {
   const { assetId, filename } = req.params;
   const filepath = path.join('backend', 'uploads', 'assets', assetId, filename);
   if (fs.existsSync(filepath)) {
-    res.sendFile(path.resolve(filepath));
+    res.sendFile(path.resolve(filepath), {
+      headers: {
+        'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Type': 'application/octet-stream'
+      }
+    });
   } else {
     res.status(404).json({ error: 'Файл не найден' });
   }
@@ -226,7 +231,6 @@ router.get('/:assetId/documents/:filename', (req, res) => {
 // Получить все файлы, связанные с активом
 router.get('/:assetId/files', async (req, res) => {
   const { assetId } = req.params;
-
   try {
     const files = await db.all(
       'SELECT id, type, filename, filepath, uploadedAt FROM asset_documents WHERE asset_id = ? ORDER BY uploadedAt DESC',
