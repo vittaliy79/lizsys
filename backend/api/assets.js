@@ -18,6 +18,7 @@ router.post('/', async (req, res) => {
   const {
     name,
     type,
+    vin,
     status,
     location,
     inspectionDate,
@@ -31,15 +32,16 @@ router.post('/', async (req, res) => {
   }
 
   const result = await db.run(
-    `INSERT INTO assets (name, type, status, location, inspectionDate, maintenanceInfo, insuranceInfo, clientId)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, type, status, location, inspectionDate, maintenanceInfo, insuranceInfo, clientId]
+    `INSERT INTO assets (name, type, vin, status, location, inspectionDate, maintenanceInfo, insuranceInfo, clientId)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, type, vin, status, location, inspectionDate, maintenanceInfo, insuranceInfo, clientId]
   );
 
   const newAsset = {
     id: result.lastID,
     name,
     type,
+    vin,
     status,
     location,
     inspectionDate,
@@ -57,6 +59,7 @@ router.put('/:id', async (req, res) => {
   const {
     name,
     type,
+    vin,
     status,
     location,
     inspectionDate,
@@ -71,9 +74,9 @@ router.put('/:id', async (req, res) => {
 
   const result = await db.run(
     `UPDATE assets
-     SET name = ?, type = ?, status = ?, location = ?, inspectionDate = ?, maintenanceInfo = ?, insuranceInfo = ?, clientId = ?
+     SET name = ?, type = ?, vin = ?, status = ?, location = ?, inspectionDate = ?, maintenanceInfo = ?, insuranceInfo = ?, clientId = ?
      WHERE id = ?`,
-    [name, type, status, location, inspectionDate, maintenanceInfo, insuranceInfo, clientId, id]
+    [name, type, vin, status, location, inspectionDate, maintenanceInfo, insuranceInfo, clientId, id]
   );
 
   if (result.changes === 0) {
@@ -84,6 +87,7 @@ router.put('/:id', async (req, res) => {
     id,
     name,
     type,
+    vin,
     status,
     location,
     inspectionDate,
@@ -122,6 +126,44 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+// Загрузка файлов ТО и страховки по активу
+router.post('/:assetId/upload', upload.fields([
+  { name: 'maintenanceFile', maxCount: 1 },
+  { name: 'insuranceFile', maxCount: 1 }
+]), async (req, res) => {
+  const { assetId } = req.params;
+  const files = req.files;
+
+  if (!files || (!files.maintenanceFile && !files.insuranceFile)) {
+    return res.status(400).json({ error: 'Файлы не загружены' });
+  }
+
+  try {
+    if (files.maintenanceFile) {
+      const file = files.maintenanceFile[0];
+      await db.run(
+        `INSERT INTO asset_documents (asset_id, type, filename, filepath)
+         VALUES (?, ?, ?, ?)`,
+        [assetId, 'maintenance', file.filename, file.path]
+      );
+    }
+
+    if (files.insuranceFile) {
+      const file = files.insuranceFile[0];
+      await db.run(
+        `INSERT INTO asset_documents (asset_id, type, filename, filepath)
+         VALUES (?, ?, ?, ?)`,
+        [assetId, 'insurance', file.filename, file.path]
+      );
+    }
+
+    res.status(201).json({ message: 'Файлы успешно загружены' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при загрузке файлов' });
+  }
+});
 
 router.post('/:assetId/documents', upload.single('document'), async (req, res) => {
   const { assetId } = req.params;
@@ -177,6 +219,29 @@ router.get('/:assetId/documents/:filename', (req, res) => {
     res.sendFile(path.resolve(filepath));
   } else {
     res.status(404).json({ error: 'Файл не найден' });
+  }
+});
+
+
+// Получить все файлы, связанные с активом
+router.get('/:assetId/files', async (req, res) => {
+  const { assetId } = req.params;
+
+  try {
+    const files = await db.all(
+      'SELECT id, type, filename, filepath, uploadedAt FROM asset_documents WHERE asset_id = ? ORDER BY uploadedAt DESC',
+      [assetId]
+    );
+
+    const formattedFiles = files.map(file => ({
+      ...file,
+      url: `/api/assets/${assetId}/documents/${file.filename}`
+    }));
+
+    res.json(formattedFiles);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении файлов' });
   }
 });
 

@@ -28,10 +28,11 @@ export default function ClientsPage() {
           console.error("Неверный формат ответа от API");
           clientsData = [];
         }
-        // Добавляем проверку наличия документов, если поле отсутствует, ставим false
+        // Убедиться, что documentCount берётся из documents.length если есть
         clientsData = clientsData.map(client => ({
           ...client,
           hasDocuments: client.hasDocuments || false,
+          documentCount: Array.isArray(client.documents) ? client.documents.length : (typeof client.documentCount === 'number' ? client.documentCount : 0),
         }));
         setClients(clientsData);
       })
@@ -160,7 +161,7 @@ export default function ClientsPage() {
             <th className="p-2 border">Адрес</th>
             <th className="p-2 border">Телефон</th>
             <th className="p-2 border">Email</th>
-            <th className="p-2 border">Документ</th>
+            <th className="p-2 border">Файлы клиента</th>
             <th className="p-2 border">Действия</th>
           </tr>
         </thead>
@@ -186,7 +187,7 @@ export default function ClientsPage() {
                   onClick={() => handleShowDocuments(client.id)}
                   className="text-blue-600 hover:underline text-sm"
                 >
-                  📎 Документы
+                  📂 Файлов клиента: {client.documentCount || 0}
                 </button>
               </td>
               <td className="border border-gray-300 p-2 text-right space-x-2">
