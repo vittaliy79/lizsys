@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 export default function PaymentsPage() {
+  const { t } = useTranslation();
   const [payments, setPayments] = useState([]);
   const [clients, setClients] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -142,7 +144,7 @@ export default function PaymentsPage() {
   };
 
   const handleDeletePayment = async (paymentId) => {
-    if (!window.confirm('Вы уверены, что хотите удалить этот платёж?')) return;
+    if (!window.confirm(t('confirmDeletePayment'))) return;
     try {
       await axios.delete(`/api/payments/${paymentId}`);
       loadPayments();
@@ -153,11 +155,11 @@ export default function PaymentsPage() {
 
   return (
       <div className="p-4">
-        <h2 className="text-2xl font-semibold mb-4">Платежи</h2>
+        <h2 className="text-2xl font-semibold mb-4">{t('payments')}</h2>
         <div className="flex justify-between items-center mb-4">
           <input
             type="text"
-            placeholder="🔍 Поиск по имени клиента или номеру контракта..."
+            placeholder={t('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="border px-3 py-2 rounded w-1/3"
@@ -176,13 +178,13 @@ export default function PaymentsPage() {
               }}
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
           >
-            ➕ Добавить платёж
+            {t('addPayment')}
           </button>
         </div>
         {isModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
               <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
-                <h3 className="text-xl font-semibold mb-4">Новый платёж</h3>
+                <h3 className="text-xl font-semibold mb-4">{t('newPayment')}</h3>
                 <form
                     onSubmit={handleAddPayment}
                     encType="multipart/form-data"
@@ -190,14 +192,14 @@ export default function PaymentsPage() {
                 >
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-medium mb-1">Клиент</label>
+                      <label className="block font-medium mb-1">{t('client')}</label>
                       <select
                           value={newPayment.clientId}
                           onChange={(e) => setNewPayment({...newPayment, clientId: e.target.value})}
                           className="border px-3 py-2 w-full"
                           required
                       >
-                        <option value="">Выберите клиента</option>
+                        <option value="">{t('client')}</option>
                         {clients.map((client) => (
                             <option key={client.id} value={client.id}>
                               {client.name}
@@ -206,14 +208,14 @@ export default function PaymentsPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block font-medium mb-1">Контракт</label>
+                      <label className="block font-medium mb-1">{t('contract')}</label>
                       <select
                           value={newPayment.contractId}
                           onChange={(e) => setNewPayment({...newPayment, contractId: e.target.value})}
                           className="border px-3 py-2 w-full"
                           required
                       >
-                        <option value="">Выберите контракт</option>
+                        <option value="">{t('contract')}</option>
                         {contracts.map((contract) => (
                             <option key={contract.id} value={contract.id}>
                               {contract.number}
@@ -222,7 +224,7 @@ export default function PaymentsPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block font-medium mb-1">Сумма</label>
+                      <label className="block font-medium mb-1">{t('amount')}</label>
                       <input
                           type="number"
                           step="0.01"
@@ -233,7 +235,7 @@ export default function PaymentsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block font-medium mb-1">Дата</label>
+                      <label className="block font-medium mb-1">{t('date')}</label>
                       <input
                           type="date"
                           value={newPayment.date}
@@ -243,7 +245,7 @@ export default function PaymentsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block font-medium mb-1">Квитанция</label>
+                      <label className="block font-medium mb-1">{t('receipt')}</label>
                       <input
                           type="file"
                           accept=".pdf,.png,.jpg,.jpeg"
@@ -257,14 +259,14 @@ export default function PaymentsPage() {
                         type="submit"
                         className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                     >
-                      💾 Сохранить
+                      {t('save')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setIsModalOpen(false)}
                         className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
                     >
-                      Отменить
+                      {t('cancel')}
                     </button>
                   </div>
                 </form>
@@ -274,13 +276,13 @@ export default function PaymentsPage() {
         <table className="min-w-full bg-white border border-gray-200">
           <thead>
           <tr>
-            <th className="border px-4 py-2">Клиент</th>
-            <th className="border px-4 py-2">Контракт</th>
-            <th className="border px-4 py-2">Дата</th>
-            <th className="border px-4 py-2">Сумма</th>
-            <th className="border px-4 py-2">Квитанция</th>
+            <th className="border px-4 py-2">{t('client')}</th>
+            <th className="border px-4 py-2">{t('contract')}</th>
+            <th className="border px-4 py-2">{t('date')}</th>
+            <th className="border px-4 py-2">{t('amount')}</th>
+            <th className="border px-4 py-2">{t('receipt')}</th>
             {/* Removed Archive column header */}
-            <th className="border px-4 py-2">Действия</th>
+            <th className="border px-4 py-2">{t('actions')}</th>
           </tr>
           </thead>
           <tbody>
@@ -304,7 +306,7 @@ export default function PaymentsPage() {
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
                       >
-                        📎 Открыть
+                        {t('open')}
                       </a>
                   ) : (
                       '—'

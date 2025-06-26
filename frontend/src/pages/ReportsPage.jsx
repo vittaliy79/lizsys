@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 export default function ReportsPage() {
   const [reports, setReports] = useState([]);
@@ -13,22 +14,23 @@ export default function ReportsPage() {
     clientType: ''
   });
   const [reportType, setReportType] = useState('');
+  const { t } = useTranslation();
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       let endpoint = '';
       switch (reportType) {
-        case 'Доходы':
+        case t('reports.types.income'):
           endpoint = '/api/reports/income';
           break;
-        case 'Долги':
+        case t('reports.types.debts'):
           endpoint = '/api/reports/debts';
           break;
-        case 'Просроченная задолженность':
+        case t('reports.types.overdue'):
           endpoint = '/api/reports/overdue';
           break;
-        case 'Количество договоров':
+        case t('reports.types.contractsCount'):
           endpoint = '/api/reports/contracts-count';
           break;
         default:
@@ -62,7 +64,7 @@ export default function ReportsPage() {
       setReports(newReports);
       setError('');
     } catch (err) {
-      setError('Ошибка при загрузке отчётов');
+      setError(t('reports.loadError'));
     } finally {
       setLoading(false);
     }
@@ -84,10 +86,10 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Аналитические отчёты</h1>
+      <h1 className="text-2xl font-bold mb-4">{t('reports.title')}</h1>
 
       <div className="flex gap-4 mb-4">
-        {['Доходы', 'Долги', 'Просроченная задолженность', 'Количество договоров'].map(type => (
+        {[t('reports.types.income'), t('reports.types.debts'), t('reports.types.overdue'), t('reports.types.contractsCount')].map(type => (
           <button
             key={type}
             onClick={() => setReportType(type)}
@@ -101,28 +103,28 @@ export default function ReportsPage() {
       {reportType && (
         <>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <input type="date" name="dateFrom" value={filters.dateFrom} onChange={handleChange} className="border p-2 rounded" placeholder="Дата с" />
-            <input type="date" name="dateTo" value={filters.dateTo} onChange={handleChange} className="border p-2 rounded" placeholder="Дата по" />
-            <input type="text" name="assetType" value={filters.assetType} onChange={handleChange} className="border p-2 rounded" placeholder="Тип актива" />
-            <input type="text" name="contractStatus" value={filters.contractStatus} onChange={handleChange} className="border p-2 rounded" placeholder="Статус договора" />
-            <input type="text" name="clientType" value={filters.clientType} onChange={handleChange} className="border p-2 rounded" placeholder="Тип клиента" />
+            <input type="date" name="dateFrom" value={filters.dateFrom} onChange={handleChange} className="border p-2 rounded" placeholder={t('reports.filters.dateFrom')} />
+            <input type="date" name="dateTo" value={filters.dateTo} onChange={handleChange} className="border p-2 rounded" placeholder={t('reports.filters.dateTo')} />
+            <input type="text" name="assetType" value={filters.assetType} onChange={handleChange} className="border p-2 rounded" placeholder={t('reports.filters.assetType')} />
+            <input type="text" name="contractStatus" value={filters.contractStatus} onChange={handleChange} className="border p-2 rounded" placeholder={t('reports.filters.contractStatus')} />
+            <input type="text" name="clientType" value={filters.clientType} onChange={handleChange} className="border p-2 rounded" placeholder={t('reports.filters.clientType')} />
           </div>
 
-          <button onClick={handleFilter} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4">🔍 Применить фильтры</button>
+          <button onClick={handleFilter} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4">{t('reports.applyFilters')}</button>
         </>
       )}
 
-      {loading && <p>Загрузка...</p>}
+      {loading && <p>{t('reports.loading')}</p>}
       {error && <p className="text-red-600">{error}</p>}
 
-      {reportType && <h2 className="text-xl font-semibold mb-2">Тип отчёта: {reportType}</h2>}
+      {reportType && <h2 className="text-xl font-semibold mb-2">{t('reports.reportTypeLabel')}{reportType}</h2>}
 
       <table className="min-w-full bg-white border mt-4">
         <thead>
           <tr className="bg-gray-100 text-left">
-            <th className="p-2 border">Отчёт</th>
-            <th className="p-2 border">Описание</th>
-            <th className="p-2 border">Действия</th>
+            <th className="p-2 border">{t('reports.table.headerTitle')}</th>
+            <th className="p-2 border">{t('reports.table.headerDescription')}</th>
+            <th className="p-2 border">{t('reports.table.headerActions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -131,8 +133,8 @@ export default function ReportsPage() {
               <td className="p-2 border">{report.title}</td>
               <td className="p-2 border">{report.description}</td>
               <td className="p-2 border space-x-2">
-                <a href={`/api/reports/${report.id}/export?format=excel`} className="text-green-600 hover:underline">📊 Excel</a>
-                <a href={`/api/reports/${report.id}/export?format=pdf`} className="text-red-600 hover:underline">📄 PDF</a>
+                <a href={`/api/reports/${report.id}/export?format=excel`} className="text-green-600 hover:underline">{t('reports.export.excel')}</a>
+                <a href={`/api/reports/${report.id}/export?format=pdf`} className="text-red-600 hover:underline">{t('reports.export.pdf')}</a>
               </td>
             </tr>
           ))}

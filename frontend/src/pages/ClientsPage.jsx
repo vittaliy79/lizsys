@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 export default function ClientsPage() {
+  const { t } = useTranslation();
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -137,7 +139,7 @@ export default function ClientsPage() {
       <div className="flex justify-between mb-4">
         <input
           type="text"
-          placeholder="Поиск клиента..."
+          placeholder={t('search_client')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="border p-2 rounded w-1/3"
@@ -146,7 +148,7 @@ export default function ClientsPage() {
           onClick={() => setShowForm(true)}
           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
         >
-          + Добавить клиента
+          {t('addClient')}
         </button>
       </div>
 
@@ -156,13 +158,13 @@ export default function ClientsPage() {
         <thead>
           <tr className="bg-gray-100 text-left">
             <th className="p-2 border">ID</th>
-            <th className="p-2 border">Имя</th>
-            <th className="p-2 border">Тип клиента</th>
-            <th className="p-2 border">Адрес</th>
-            <th className="p-2 border">Телефон</th>
+            <th className="p-2 border">{t('clientName')}</th>
+            <th className="p-2 border">{t('clientType')}</th>
+            <th className="p-2 border">{t('address')}</th>
+            <th className="p-2 border">{t('phone')}</th>
             <th className="p-2 border">Email</th>
-            <th className="p-2 border">Файлы клиента</th>
-            <th className="p-2 border">Действия</th>
+            <th className="p-2 border">{t('clientFiles')}</th>
+            <th className="p-2 border">{t('actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -172,9 +174,9 @@ export default function ClientsPage() {
               <td className="p-2 border">{client.name}</td>
               <td className="p-2 border">
                 {client.clientType === 'individual'
-                  ? 'Физическое лицо'
+                  ? t('individual')
                   : client.clientType === 'legal'
-                  ? 'Юридическое лицо'
+                  ? t('legal')
                   : client.clientType}
               </td>
               <td className="p-2 border">
@@ -187,7 +189,7 @@ export default function ClientsPage() {
                   onClick={() => handleShowDocuments(client.id)}
                   className="text-blue-600 hover:underline text-sm"
                 >
-                  📂 Файлов клиента: {client.documentCount || 0}
+                  📂 {t('clientFiles')}: {client.documentCount || 0}
                 </button>
               </td>
               <td className="border border-gray-300 p-2 text-right space-x-2">
@@ -234,6 +236,7 @@ export default function ClientsPage() {
 // --- Tabs-enabled modal form component ---
 function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingClientId }) {
   const [activeTab, setActiveTab] = useState('main');
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded shadow w-full max-w-md relative">
@@ -244,7 +247,7 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
           &times;
         </button>
         <h2 className="text-xl font-semibold mb-4">
-          {editingClientId ? 'Редактировать клиента' : 'Добавить клиента'}
+          {editingClientId ? t('editClient') : t('addClient')}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex mb-4 space-x-4">
@@ -253,29 +256,29 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
               onClick={() => setActiveTab('main')}
               className={`px-4 py-2 rounded ${activeTab === 'main' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
             >
-              Основное
+              {t('main')}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('address')}
               className={`px-4 py-2 rounded ${activeTab === 'address' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
             >
-              Адрес
+              {t('address')}
             </button>
           </div>
           {activeTab === 'main' && (
             <>
-              <label className="block font-medium">Имя</label>
+              <label className="block font-medium">{t('clientName')}</label>
               <input
                 type="text"
                 name="name"
-                placeholder="Имя"
+                placeholder={t('clientName')}
                 value={form.name}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
                 required
               />
-              <label className="block font-medium">Тип клиента</label>
+              <label className="block font-medium">{t('clientType')}</label>
               <select
                 name="clientType"
                 value={form.clientType}
@@ -283,15 +286,15 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
                 className="w-full border p-2 rounded"
                 required
               >
-                <option value="">Тип клиента</option>
-                <option value="individual">Физическое лицо</option>
-                <option value="legal">Юридическое лицо</option>
+                <option value="">{t('clientType')}</option>
+                <option value="individual">{t('individual')}</option>
+                <option value="legal">{t('legal')}</option>
               </select>
-              <label className="block font-medium">Телефон</label>
+              <label className="block font-medium">{t('phone')}</label>
               <input
                 type="text"
                 name="phone"
-                placeholder="Телефон"
+                placeholder={t('phone')}
                 value={form.phone}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
@@ -307,11 +310,11 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
                 className="w-full border p-2 rounded"
                 required
               />
-              <label className="block font-medium">Документ</label>
+              <label className="block font-medium">{t('documentType')}</label>
               <input
                 type="text"
                 name="documentNumber"
-                placeholder="№ документа (паспорт/ИНН)"
+                placeholder={t('document_number')}
                 value={form.documentNumber}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
@@ -321,51 +324,51 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
           )}
           {activeTab === 'address' && (
             <>
-              <label className="block font-medium">Страна</label>
+              <label className="block font-medium">{t('addressCountry')}</label>
               <input
                 type="text"
                 name="country"
-                placeholder="Страна"
+                placeholder={t('addressCountry')}
                 value={form.country}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
                 required
               />
-              <label className="block font-medium">Город</label>
+              <label className="block font-medium">{t('addressCity')}</label>
               <input
                 type="text"
                 name="city"
-                placeholder="Город"
+                placeholder={t('addressCity')}
                 value={form.city}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
                 required
               />
-              <label className="block font-medium">Район</label>
+              <label className="block font-medium">{t('addressDistrict')}</label>
               <input
                 type="text"
                 name="district"
-                placeholder="Район"
+                placeholder={t('addressDistrict')}
                 value={form.district}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
                 required
               />
-              <label className="block font-medium">Улица</label>
+              <label className="block font-medium">{t('addressStreet')}</label>
               <input
                 type="text"
                 name="street"
-                placeholder="Улица"
+                placeholder={t('addressStreet')}
                 value={form.street}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
                 required
               />
-              <label className="block font-medium">Дом / квартира</label>
+              <label className="block font-medium">{t('addressHouse')}</label>
               <input
                 type="text"
                 name="houseNumber"
-                placeholder="Дом / квартира"
+                placeholder={t('addressHouse')}
                 value={form.houseNumber}
                 onChange={handleChange}
                 className="w-full border p-2 rounded"
@@ -377,14 +380,14 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
             type="submit"
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
-            {editingClientId ? 'Обновить' : 'Сохранить'}
+            {editingClientId ? t('update') : t('save')}
           </button>
           <button
             type="button"
             onClick={resetForm}
             className="ml-2 bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400"
           >
-            Отменить
+            {t('cancel')}
           </button>
         </form>
       </div>
@@ -395,6 +398,7 @@ function ClientFormModal({ form, handleChange, handleSubmit, resetForm, editingC
 function DocumentsModal({ clientId, documents, setDocuments, onClose }) {
   const fileInputRef = useRef();
   const [docType, setDocType] = useState('passport');
+  const { t } = useTranslation();
 
   const handleUpload = async () => {
     const file = fileInputRef.current.files[0];
@@ -408,19 +412,19 @@ function DocumentsModal({ clientId, documents, setDocuments, onClose }) {
       const res = await axios.get(`/api/clients/${clientId}/documents`);
       setDocuments(res.data || []);
     } catch (error) {
-      alert('Ошибка при загрузке документа: ' + (error?.response?.data?.message || error.message));
+      alert(t('upload_error') + ': ' + (error?.response?.data?.message || error.message));
       console.error(error);
     }
   };
 
   const handleDeleteDocument = async (documentId) => {
-    if (!window.confirm('Удалить документ?')) return;
+    if (!window.confirm(t('confirmDeleteClient'))) return;
     try {
       await axios.delete(`/api/clients/${clientId}/documents/${documentId}`);
       const res = await axios.get(`/api/clients/${clientId}/documents`);
       setDocuments(res.data || []);
     } catch (error) {
-      alert('Ошибка при удалении документа');
+      alert(t('deleteClientError'));
       console.error(error);
     }
   };
@@ -434,7 +438,7 @@ function DocumentsModal({ clientId, documents, setDocuments, onClose }) {
         >
           &times;
         </button>
-        <h2 className="text-xl font-semibold mb-4">Документы клиента #{clientId}</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('client_documents') + ' #' + clientId}</h2>
         <ul className="mb-4 max-h-60 overflow-y-auto">
           {documents.map((doc, idx) => (
             <li key={idx} className="flex justify-between items-center border-b py-2">
@@ -446,13 +450,13 @@ function DocumentsModal({ clientId, documents, setDocuments, onClose }) {
                   rel="noopener noreferrer"
                   className="text-blue-600 text-sm"
                 >
-                  📂 Открыть
+                  📂 {t('open')}
                 </a>
                 <button
                   onClick={() => handleDeleteDocument(doc.id)}
                   className="text-red-600 hover:underline text-sm ml-4"
                 >
-                  🗑️ Удалить
+                  🗑️ {t('delete')}
                 </button>
               </div>
             </li>
@@ -460,15 +464,15 @@ function DocumentsModal({ clientId, documents, setDocuments, onClose }) {
         </ul>
         {/* Тип документа */}
         <div className="mb-2">
-          <label className="block font-medium mb-1">Тип документа</label>
+          <label className="block font-medium mb-1">{t('documentType')}</label>
           <select
             value={docType}
             onChange={(e) => setDocType(e.target.value)}
             className="w-full border p-2 rounded"
           >
-            <option value="passport">Паспорт</option>
-            <option value="inn">ИНН</option>
-            <option value="tax">Налоговый документ</option>
+            <option value="passport">{t('passport')}</option>
+            <option value="inn">{t('inn')}</option>
+            <option value="tax">{t('tax_doc')}</option>
           </select>
         </div>
         <div className="flex items-center space-x-2">
@@ -477,7 +481,7 @@ function DocumentsModal({ clientId, documents, setDocuments, onClose }) {
             onClick={handleUpload}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
-            📥 Загрузить
+            📥 {t('uploadDocument')}
           </button>
         </div>
       </div>

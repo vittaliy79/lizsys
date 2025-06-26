@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardPage() {
-    const [stats, setStats] = useState(null);
+    const { t } = useTranslation();
     const navigate = useNavigate();
+
+    const [stats, setStats] = useState(null);
 
     useEffect(() => {
         axios.get('/api/dashboard/dashboard-stats')
@@ -17,10 +20,10 @@ export default function DashboardPage() {
     }
 
     const cards = [
-        { label: 'Клиенты', value: stats.clients, path: '/clients' },
-        { label: 'Контракты', value: stats.contracts, path: '/contracts' },
-        { label: 'Платежи', value: `$${stats.payments}`, path: '/payments' },
-        { label: 'Активы', value: stats.assets, path: '/assets' }
+        { label: 'clients', value: stats.clients, path: '/clients' },
+        { label: 'contracts', value: stats.contracts, path: '/contracts' },
+        { label: 'payments', value: `$${stats.payments}`, path: '/payments' },
+        { label: 'assets', value: stats.assets, path: '/assets' }
     ];
 
     return (
@@ -31,7 +34,7 @@ export default function DashboardPage() {
                     className="bg-white rounded-xl shadow p-5 border hover:shadow-md transition cursor-pointer"
                     onClick={() => navigate(card.path)}
                 >
-                    <h3 className="text-sm text-gray-500 mb-1">{card.label}</h3>
+                    <h3 className="text-sm text-gray-500 mb-1">{t(card.label)}</h3>
                     <p className="text-3xl font-semibold text-blue-600">{card.value}</p>
                 </div>
             ))}

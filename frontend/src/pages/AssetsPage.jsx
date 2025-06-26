@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 // --- AssetDocumentsModal: модальное окно для файлов актива ---
 function AssetDocumentsModal({ assetId, show, onClose }) {
+  const { t } = useTranslation();
   const [documents, setDocuments] = useState([]);
   const [maintenanceFile, setMaintenanceFile] = useState(null);
   const [insuranceFile, setInsuranceFile] = useState(null);
@@ -53,7 +55,7 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
   // Удаление документа
   const handleDeleteDoc = async (docId) => {
     if (!assetId || !docId) return;
-    if (!window.confirm('Удалить файл?')) return;
+    if (!window.confirm(t('confirmDeleteFile'))) return;
     try {
       await axios.delete(`/api/assets/${assetId}/files/${docId}`);
       fetchDocuments();
@@ -65,10 +67,10 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
   return show ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white rounded-lg w-[720px] p-6">
-        <h2 className="text-xl font-semibold mb-4">Файлы клиента</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('clientFiles')}</h2>
         <form onSubmit={handleUpload} className="space-y-2 mb-4">
           <div>
-            <label className="block mb-1 font-medium">Документ обслуживания</label>
+            <label className="block mb-1 font-medium">{t('maintenanceDoc')}</label>
             <input
               type="file"
               onChange={e => setMaintenanceFile(e.target.files[0])}
@@ -77,7 +79,7 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
             />
           </div>
           <div>
-            <label className="block mb-1 font-medium">Страховой документ</label>
+            <label className="block mb-1 font-medium">{t('insuranceDoc')}</label>
             <input
               type="file"
               onChange={e => setInsuranceFile(e.target.files[0])}
@@ -91,7 +93,7 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
               className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
               disabled={loading}
             >
-              Загрузить
+              {t('upload')}
             </button>
           </div>
         </form>
@@ -100,22 +102,22 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
         ) : (
           <>
             {(!documents || documents.length === 0) ? (
-              <p>Нет прикреплённых файлов.</p>
+              <p>{t('noFiles')}</p>
             ) : (
               <table className="w-full border text-sm">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="border px-2 py-1 text-left">Тип</th>
-                    <th className="border px-2 py-1 text-left">Файл</th>
-                    <th className="border px-2 py-1 text-left">Действия</th>
+                    <th className="border px-2 py-1 text-left">{t('type')}</th>
+                    <th className="border px-2 py-1 text-left">{t('name')}</th>
+                    <th className="border px-2 py-1 text-left">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {documents.map((doc) => {
                     const docType = doc.filename.toLowerCase().includes('maintenance')
-                      ? 'Документ обслуживания'
+                      ? t('maintenanceDoc')
                       : doc.filename.toLowerCase().includes('insurance')
-                      ? 'Страховой документ'
+                      ? t('insuranceDoc')
                       : 'Неизвестно';
                     return (
                       <tr key={doc.id}>
@@ -131,14 +133,14 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:underline"
                             >
-                              📂 Открыть
+                              📂 {t('open')}
                             </a>
                             <button
                               className="text-red-600 hover:underline"
                               onClick={() => handleDeleteDoc(doc.id)}
                               type="button"
                             >
-                              🗑️ Удалить
+                              🗑️ {t('delete')}
                             </button>
                           </div>
                         </td>
@@ -155,7 +157,7 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
             onClick={onClose}
             className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
           >
-            Закрыть
+            {t('close')}
           </button>
         </div>
       </div>
@@ -164,6 +166,7 @@ function AssetDocumentsModal({ assetId, show, onClose }) {
 }
 
 export default function AssetsPage() {
+  const { t } = useTranslation();
   const [assets, setAssets] = useState(() => []);
   const [clients, setClients] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -347,7 +350,7 @@ export default function AssetsPage() {
       <div className="flex justify-between items-center mb-4">
         <input
           type="text"
-          placeholder="Поиск по активам..."
+          placeholder={t('search') || 'Поиск по активам...'}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="border rounded px-3 py-2 w-1/3"
@@ -356,31 +359,31 @@ export default function AssetsPage() {
           onClick={openNewAssetModal}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center"
         >
-          <span className="mr-2">+</span> Добавить Актив
+          <span className="mr-2">+</span> {t('addAsset')}
         </button>
       </div>
 
       <table className="w-full border-collapse border border-gray-300">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-gray-300 px-4 py-2">Клиент</th>
-            <th className="border border-gray-300 px-4 py-2">Тип</th>
-            <th className="border border-gray-300 px-4 py-2">Модель</th>
-            <th className="border border-gray-300 px-4 py-2">VIN</th>
-            <th className="border border-gray-300 px-4 py-2">Статус</th>
-            <th className="border border-gray-300 px-4 py-2">Осмотр</th>
-            <th className="border border-gray-300 px-4 py-2">Обслуживание</th>
-            <th className="border border-gray-300 px-4 py-2">Страховка</th>
-            <th className="border border-gray-300 px-4 py-2">Местоположение</th>
-            <th className="border border-gray-300 px-4 py-2">Состояние</th>
-            <th className="border border-gray-300 px-4 py-2">Документы</th>
-            <th className="border border-gray-300 px-4 py-2">Действия</th>
+            <th className="border border-gray-300 px-4 py-2">{t('client')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('type')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('model')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('vin')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('status')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('inspection')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('maintenance')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('insurance')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('location')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('state')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('documents')}</th>
+            <th className="border border-gray-300 px-4 py-2">{t('actions')}</th>
           </tr>
         </thead>
         <tbody>
           {!filteredAssets || filteredAssets.length === 0 ? (
             <tr>
-              <td colSpan="12" className="text-center py-4">Активы не найдены.</td>
+              <td colSpan="12" className="text-center py-4">{t('notFound')}</td>
             </tr>
           ) : (
             filteredAssets.map(asset => (
@@ -400,20 +403,20 @@ export default function AssetsPage() {
                     onClick={() => { setDocumentsAssetId(asset.id); setShowDocumentsModal(true); }}
                     className="text-blue-600 hover:underline"
                   >
-                    📂 Файлов клиента: {asset.fileCount || 0}
+                    📂 {t('clientFiles')}: {asset.fileCount || 0}
                   </button>
                 </td>
                 <td className="border border-gray-300 px-4 py-2 space-x-2">
                   <button
                     onClick={() => openEditAssetModal(asset)}
-                    title="Редактировать"
+                    title={t('editAsset')}
                     className="hover:text-blue-600"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => handleDeleteAsset(asset.id)}
-                    title="Удалить"
+                    title={t('delete')}
                     className="hover:text-red-600"
                   >
                     🗑️
@@ -435,67 +438,67 @@ export default function AssetsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg w-96 p-6">
-            <h2 className="text-xl font-semibold mb-4">{editingAssetId ? 'Редактировать Актив' : 'Добавить Актив'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{editingAssetId ? t('editAsset') : t('addAsset')}</h2>
             <div className="flex mb-4 border-b">
               <button
                 type="button"
                 className={`px-4 py-2 ${activeTab === 'main' ? 'border-b-2 border-green-600 font-semibold' : ''}`}
                 onClick={() => setActiveTab('main')}
               >
-                Основное
+                {t('main')}
               </button>
               <button
                 type="button"
                 className={`px-4 py-2 ${activeTab === 'docs' ? 'border-b-2 border-green-600 font-semibold' : ''}`}
                 onClick={() => setActiveTab('docs')}
               >
-                Дополнительно
+                {t('additional')}
               </button>
             </div>
             <form onSubmit={handleModalSubmit} className="space-y-4">
               {activeTab === 'main' && (
                 <>
                   <div>
-                    <label className="block mb-1 font-medium">Клиент</label>
+                    <label className="block mb-1 font-medium">{t('client')}</label>
                     <select
                       value={newAsset.clientId}
                       onChange={e => handleModalChange('clientId', e.target.value)}
                       className="w-full border border-gray-300 rounded px-3 py-2"
                       required
                     >
-                      <option value="" disabled>Выберите клиента</option>
+                      <option value="" disabled>{t('selectClient')}</option>
                       {clients.map(client => (
                         <option key={client.id} value={client.id}>{client.name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Название</label>
+                    <label className="block mb-1 font-medium">{t('name')}</label>
                     <input
                       type="text"
                       value={newAsset.name}
-                      onChange={e => handleModalChange('name', e.target.value)}
+                      onChange={e => handleModalChange('model', e.target.value)}
                       className="w-full border border-gray-300 rounded px-3 py-2"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Тип</label>
+                    <label className="block mb-1 font-medium">{t('type')}</label>
                     <select
                       value={newAsset.type}
                       onChange={e => handleModalChange('type', e.target.value)}
                       className="w-full border border-gray-300 rounded px-3 py-2"
                       required
                     >
-                      <option value="" disabled>Выберите тип</option>
-                      <option value="Автомобиль">Автомобиль</option>
-                      <option value="Спецтехника">Спецтехника</option>
-                      <option value="Оборудование">Оборудование</option>
-                      <option value="Прочее">Прочее</option>
+                      <option value="" disabled>{t('selectType')}</option>
+                      <option value={t('car')}>{t('car')}</option>
+                      <option value={t('special')}>{t('special')}</option>
+                      <option value={t('equipment')}>{t('equipment')}</option>
+                      <option value={t('other')}>{t('other')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">VIN</label>
+                    <label className="block mb-1 font-medium">{t('vin')}</label>
                     <input
                       type="text"
                       value={newAsset.vin}
@@ -504,7 +507,7 @@ export default function AssetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Статус</label>
+                    <label className="block mb-1 font-medium">{t('status')}</label>
                     <input
                       type="text"
                       value={newAsset.status}
@@ -519,7 +522,7 @@ export default function AssetsPage() {
               {activeTab === 'docs' && (
                 <>
                   <div>
-                    <label className="block mb-1 font-medium">Обслуживание</label>
+                    <label className="block mb-1 font-medium">{t('maintenance')}</label>
                     <input
                       type="text"
                       value={newAsset.maintenanceInfo}
@@ -528,7 +531,7 @@ export default function AssetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Страховка</label>
+                    <label className="block mb-1 font-medium">{t('insurance')}</label>
                     <input
                       type="text"
                       value={newAsset.insuranceInfo}
@@ -537,7 +540,7 @@ export default function AssetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Дата осмотра</label>
+                    <label className="block mb-1 font-medium">{t('inspectionDate')}</label>
                     <input
                       type="date"
                       value={newAsset.inspectionDate}
@@ -546,7 +549,7 @@ export default function AssetsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block mb-1 font-medium">Местоположение</label>
+                    <label className="block mb-1 font-medium">{t('location')}</label>
                     <input
                       type="text"
                       value={newAsset.location}
@@ -562,13 +565,13 @@ export default function AssetsPage() {
                   onClick={resetForm}
                   className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
                 >
-                  Отмена
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
                 >
-                  Сохранить
+                  {t('save')}
                 </button>
               </div>
             </form>

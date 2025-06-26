@@ -1,8 +1,10 @@
 // src/pages/ContractsPage.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 export default function ContractsPage() {
+    const { t } = useTranslation();
     const [contracts, setContracts] = useState([]);
     const [search, setSearch] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
@@ -141,13 +143,13 @@ export default function ContractsPage() {
     }
 
     async function handleDeleteContract(id) {
-        if (!confirm('Удалить контракт?')) return;
+        if (!confirm(t('confirmDeleteContract'))) return;
         try {
             await axios.delete(`/api/contracts/${id}`);
             fetchContracts();
         } catch (error) {
             console.error('Failed to delete contract', error);
-            alert('Ошибка при удалении контракта');
+            alert(t('deleteContract'));
         }
     }
 
@@ -203,7 +205,7 @@ export default function ContractsPage() {
             <div className="flex justify-between mb-4">
                 <input
                     type="text"
-                    placeholder="Поиск по названию или номеру"
+                    placeholder={t('searchContract')}
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="border px-2 py-1 rounded w-64"
@@ -213,7 +215,7 @@ export default function ContractsPage() {
                         onClick={() => setModalOpen(true)}
                         className="bg-green-600 text-white px-4 py-2 rounded flex items-center"
                     >
-                        <span className="mr-1">＋</span> Добавить контракт
+                        <span className="mr-1">＋</span> {t('addContract')}
                     </button>
                     <button
                         onClick={() => alert('Функциональность загрузки документов пока не реализована')}
@@ -227,57 +229,63 @@ export default function ContractsPage() {
                 <thead>
                 <tr className="bg-gray-100">
                     <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('id')}>ID</th>
-                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('title')}>Название</th>
-                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('number')}>Номер</th>
-                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('amount')}>Сумма</th>
-                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('startDate')}>Дата начала</th>
-                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('endDate')}>Дата окончания</th>
-                    <th className="border border-gray-300 p-2">Действия</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('title')}>{t('asset')}</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('number')}>{t('contractNumber')}</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('amount')}>{t('amount')}</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('startDate')}>{t('contractDateStart')}</th>
+                    <th className="border border-gray-300 p-2 cursor-pointer" onClick={() => handleSort('endDate')}>{t('contractDateEnd')}</th>
+                    <th className="border border-gray-300 p-2">{t('actions')}</th>
                 </tr>
                 </thead>
                 <tbody>
-                {filteredContracts().map(contract => (
-                    <tr key={contract.id} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 p-2">{contract.id}</td>
-                        <td className="border border-gray-300 p-2">{contract.title}</td>
-                        <td className="border border-gray-300 p-2">{contract.number}</td>
-                        <td className="border border-gray-300 p-2">{contract.amount}</td>
-                        <td className="border border-gray-300 p-2">{contract.startDate}</td>
-                        <td className="border border-gray-300 p-2">{contract.endDate}</td>
-                        <td className="border border-gray-300 p-2 text-right space-x-2">
-                            <button
-                                onClick={() => openEditModal(contract)}
-                                className="text-blue-600 hover:underline text-sm"
-                            >
-                                ✏️
-                            </button>
-                            <button
-                                onClick={() => handleDeleteContract(contract.id)}
-                                className="text-red-600 hover:underline text-sm"
-                            >
-                                🗑️
-                            </button>
-                            <button
-                                onClick={() => alert('Архивирование документов пока не реализовано')}
-                                className="text-gray-600 hover:underline text-sm"
-                            >
-                                🗄️
-                            </button>
-                            <button
-                                onClick={() => openExtendForm(contract)}
-                                className="text-yellow-600 hover:underline text-sm"
-                            >
-                                ⏳
-                            </button>
-                            <button
-                                onClick={() => openTransferModal(contract)}
-                                className="text-green-600 hover:underline text-sm"
-                            >
-                                ✅
-                            </button>
-                        </td>
+                {filteredContracts().length === 0 ? (
+                    <tr>
+                        <td colSpan={7} className="text-center py-4">{t('noContracts')}</td>
                     </tr>
-                ))}
+                ) : (
+                    filteredContracts().map(contract => (
+                        <tr key={contract.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 p-2">{contract.id}</td>
+                            <td className="border border-gray-300 p-2">{contract.title}</td>
+                            <td className="border border-gray-300 p-2">{contract.number}</td>
+                            <td className="border border-gray-300 p-2">{contract.amount}</td>
+                            <td className="border border-gray-300 p-2">{contract.startDate}</td>
+                            <td className="border border-gray-300 p-2">{contract.endDate}</td>
+                            <td className="border border-gray-300 p-2 text-right space-x-2">
+                                <button
+                                    onClick={() => openEditModal(contract)}
+                                    className="text-blue-600 hover:underline text-sm"
+                                >
+                                    ✏️
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteContract(contract.id)}
+                                    className="text-red-600 hover:underline text-sm"
+                                >
+                                    🗑️
+                                </button>
+                                <button
+                                    onClick={() => alert('Архивирование документов пока не реализовано')}
+                                    className="text-gray-600 hover:underline text-sm"
+                                >
+                                    🗄️
+                                </button>
+                                <button
+                                    onClick={() => openExtendForm(contract)}
+                                    className="text-yellow-600 hover:underline text-sm"
+                                >
+                                    ⏳
+                                </button>
+                                <button
+                                    onClick={() => openTransferModal(contract)}
+                                    className="text-green-600 hover:underline text-sm"
+                                >
+                                    ✅
+                                </button>
+                            </td>
+                        </tr>
+                    ))
+                )}
                 </tbody>
             </table>
 
@@ -323,12 +331,13 @@ function ContractModalTabs({
     handleChange,
     submitContract,
 }) {
+    const { t } = useTranslation();
     const [tab, setTab] = React.useState('main');
     return (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded shadow-lg w-96">
                 <h2 className="text-xl mb-4">
-                    {isEditing ? 'Редактировать контракт' : 'Добавить контракт'}
+                    {isEditing ? t('editContract') : t('addContract')}
                 </h2>
                 <nav className="flex mb-3 space-x-2">
                     <button
@@ -336,22 +345,22 @@ function ContractModalTabs({
                         type="button"
                         onClick={() => setTab('main')}
                     >
-                        Основные
+                        {t('main')}
                     </button>
                     <button
                         className={`px-3 py-1 rounded-t ${tab === 'terms' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
                         type="button"
                         onClick={() => setTab('terms')}
                     >
-                        Условия
+                        {t('conditions')}
                     </button>
                 </nav>
                 <form onSubmit={submitContract} className="space-y-3">
                     {tab === 'main' ? (
                         <fieldset className="border border-gray-300 rounded p-3 mb-2">
-                            <legend className="text-sm font-semibold px-2">Основные данные</legend>
+                            <legend className="text-sm font-semibold px-2">{t('mainData')}</legend>
                             <div>
-                                <label className="block mb-1">Клиент</label>
+                                <label className="block mb-1">{t('client')}</label>
                                 <select
                                     name="clientId"
                                     value={form.clientId}
@@ -359,14 +368,14 @@ function ContractModalTabs({
                                     required
                                     className="w-full border px-2 py-1 rounded"
                                 >
-                                    <option value="">Выберите клиента</option>
+                                    <option value="">{t('clientSelection')}</option>
                                     {clients.map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                 </select>
                             </div>
                             <div>
-                                <label className="block mb-1">Название</label>
+                                <label className="block mb-1">{t('name')}</label>
                                 <input
                                     type="text"
                                     name="title"
@@ -377,7 +386,7 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Номер</label>
+                                <label className="block mb-1">{t('contractNumber')}</label>
                                 <input
                                     type="text"
                                     name="number"
@@ -388,7 +397,7 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Тип договора</label>
+                                <label className="block mb-1">{t('contractType')}</label>
                                 <select
                                     name="type"
                                     value={form.type}
@@ -396,13 +405,13 @@ function ContractModalTabs({
                                     required
                                     className="w-full border px-2 py-1 rounded"
                                 >
-                                    <option value="">Выберите тип</option>
-                                    <option value="vehicle">Автомобиль</option>
-                                    <option value="equipment">Оборудование</option>
+                                    <option value="">{t('contractTypeSelection')}</option>
+                                    <option value="vehicle">{t('contractTypeVehicle')}</option>
+                                    <option value="equipment">{t('contractTypeEquipment')}</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block mb-1">Сумма</label>
+                                <label className="block mb-1">{t('contractAmount')}</label>
                                 <input
                                     type="number"
                                     name="amount"
@@ -415,9 +424,9 @@ function ContractModalTabs({
                         </fieldset>
                     ) : (
                         <fieldset className="border border-gray-300 rounded p-3">
-                            <legend className="text-sm font-semibold px-2">Условия договора</legend>
+                            <legend className="text-sm font-semibold px-2">{t('contractConditions')}</legend>
                             <div>
-                                <label className="block mb-1">Первоначальный взнос</label>
+                                <label className="block mb-1">{t('downPayment')}</label>
                                 <input
                                     type="number"
                                     name="downPayment"
@@ -428,7 +437,7 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Процентная ставка (%)</label>
+                                <label className="block mb-1">{t('interestRate')}</label>
                                 <input
                                     type="number"
                                     name="interestRate"
@@ -439,7 +448,7 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Срок (в месяцах)</label>
+                                <label className="block mb-1">{t('termMonths')}</label>
                                 <input
                                     type="number"
                                     name="termMonths"
@@ -450,7 +459,7 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Дата начала</label>
+                                <label className="block mb-1">{t('startDate')}</label>
                                 <input
                                     type="date"
                                     name="startDate"
@@ -461,7 +470,7 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Дата окончания</label>
+                                <label className="block mb-1">{t('endDate')}</label>
                                 <input
                                     type="date"
                                     name="endDate"
@@ -472,14 +481,14 @@ function ContractModalTabs({
                                 />
                             </div>
                             <div>
-                                <label className="block mb-1">Документы</label>
+                                <label className="block mb-1">{t('documents')}</label>
                                 <input
                                     type="file"
                                     multiple
                                     className="w-full border px-2 py-1 rounded"
                                     disabled
                                 />
-                                <p className="text-sm text-gray-500 mt-1">Загрузка документов будет доступна после сохранения контракта</p>
+                                <p className="text-sm text-gray-500 mt-1">{t('documentsNote')}</p>
                             </div>
                         </fieldset>
                     )}
@@ -489,7 +498,7 @@ function ContractModalTabs({
                                 type="submit"
                                 className="bg-blue-600 text-white px-4 py-2 rounded"
                             >
-                                {isEditing ? 'Обновить' : 'Сохранить'}
+                                {isEditing ? t('update') : t('save')}
                             </button>
                             <button
                                 type="button"
@@ -499,7 +508,7 @@ function ContractModalTabs({
                                 }}
                                 className="ml-2 px-4 py-2 border rounded"
                             >
-                                Отменить
+                                {t('cancel')}
                             </button>
                         </div>
                     </div>
@@ -510,7 +519,7 @@ function ContractModalTabs({
 }
 
 // --- ExtendModalTabs компонент ---
-function ExtendModalTabs({ extendModal, setExtendModal, fetchContracts }) {
+function ExtendModalTabs({extendModal, setExtendModal, fetchContracts}) {
     const [tab, setTab] = React.useState('extend');
     const [calculatedDate, setCalculatedDate] = React.useState('');
     const [months, setMonths] = React.useState('12');

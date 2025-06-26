@@ -20,7 +20,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log('🚀 Сервер запускается...');
+console.log('🚀 Backend-service is starting up...');
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   etag: false,
